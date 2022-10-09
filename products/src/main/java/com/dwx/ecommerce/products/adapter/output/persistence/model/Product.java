@@ -1,4 +1,4 @@
-package com.dwx.ecommerce.products.adapter.output.dynamodb;
+package com.dwx.ecommerce.products.adapter.output.persistence.model;
 
 import lombok.*;
 

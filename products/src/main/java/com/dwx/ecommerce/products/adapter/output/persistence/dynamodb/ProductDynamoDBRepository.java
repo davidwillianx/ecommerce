@@ -1,5 +1,6 @@
-package com.dwx.ecommerce.products.adapter.output.dynamodb;
+package com.dwx.ecommerce.products.adapter.output.persistence.dynamodb;
 
+import com.dwx.ecommerce.products.adapter.output.persistence.model.Product;
 import reactor.core.publisher.Mono;
 
 public class ProductDynamoDBRepository implements ProductRepository {

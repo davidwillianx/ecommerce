@@ -1,5 +1,9 @@
-package com.dwx.ecommerce.products.adapter.output.dynamodb;
+package com.dwx.ecommerce.products.adapter.output.persistece.dynamodb;
 
+import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.CidAlreadyInUseException;
+import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.ProductDynamoDBRepository;
+import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.ProductRepository;
+import com.dwx.ecommerce.products.adapter.output.persistence.model.Product;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import reactor.test.StepVerifier;
