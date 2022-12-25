@@ -9,7 +9,14 @@ services:
   localstack:
     image: "localstack/localstack"
     environment:
+      - DEBUG=1
       - SERVICES=dynamodb
-      - AWS_DEFAULT_REGION=sa-east-1
+      - HOSTNAME=localstack
+      - DEFAULT_REGION=sa-east-1
     ports:
       - 4566:4566
+    networks:
+      - main
+networks:
+  main:
+    driver: bridge

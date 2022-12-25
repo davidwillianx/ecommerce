@@ -23,6 +23,7 @@ dependencies {
 
 	// #AWS Dependencies
 	implementation 'com.amazonaws:aws-java-sdk-dynamodb:1.12.310'
+	implementation 'com.amazonaws:aws-java-sdk-sts:1.12.310'
 
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'

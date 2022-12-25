@@ -1,8 +1,10 @@
 spring:
+  main:
+    allow-bean-definition-overriding: true
   application:
     name: ${APP_NAME:app-product}
 aws:
-  endpoint: ${AWS_ENDPOINT}
+  endpoint: ${AWS_ENDPOINT:http://localhost:4566}
   region: ${AWS_REGION:sa-east-1}
   dynamo:
-    endpoint: ${DYNAMO_DB_ENDPOINT}
+    endpoint: ${DYNAMO_DB_ENDPOINT:http://localhost:4566}
