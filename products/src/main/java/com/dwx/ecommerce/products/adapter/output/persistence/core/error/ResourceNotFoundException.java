@@ -1,4 +1,4 @@
-package com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.error;
+package com.dwx.ecommerce.products.adapter.output.persistence.core.error;
 
 public class ResourceNotFoundException extends RuntimeException{
     private String code;
