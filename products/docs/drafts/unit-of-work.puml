@@ -1,27 +1,30 @@
 @startuml
-'https://plantuml.com/class-diagram
+interface Transaction {
+  start(DBConnection connection): void
+  findById(PK pk, Function<Object, Model> mapHandler): Model
+  add(WriteOperation write): void
+  condition(Condition condition):
+  commit(Supplier<Model>, Supplier<List<Throwable>): T
+  remove(PK id): Boolen
 
-abstract class AbstractList
-abstract AbstractCollection
-interface List
-interface Collection
-
-List <|-- AbstractList
-Collection <|-- AbstractCollection
-
-Collection <|- List
-AbstractCollection <|- AbstractList
-AbstractList <|-- ArrayList
-
-class ArrayList {
-Object[] elementData
-size()
 }
 
-enum TimeUnit {
-DAYS
-HOURS
-MINUTES
+
+class DynamoTransaction implements Transaction {
+ - void write(TransactionWriteItems items)
 }
 
+interface DBConnection<T> {
+   get(): T
+}
+
+interface WriteOperation {}
+interface ReadOperation {}
+interface Condition {}
+
+
+interface TransactionResult {
+  getResult(): Model
+  getError(): List<Throwable>
+}
 @enduml
