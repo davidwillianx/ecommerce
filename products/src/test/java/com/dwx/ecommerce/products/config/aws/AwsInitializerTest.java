@@ -18,7 +18,7 @@ class AwsInitializerTest {
     @BeforeEach
     void setUp() {
         awsProperties = Mockito.mock(AwsProperties.class);
-        sut = new AwsInitializer(awsProperties);
+        sut = new AwsInitializer();
     }
 
     @Test
@@ -30,7 +30,7 @@ class AwsInitializerTest {
         BDDMockito.given(dynamoProperty.endpoint()).willReturn(dynamoEndpoint);
         BDDMockito.given(awsProperties.region()).willReturn("us-east-1");
 
-        final var result = sut.amazonDynamoDB();
+        final var result = sut.amazonDynamoDB(awsProperties);
 
         assertThat(result).isInstanceOf(AmazonDynamoDB.class);
     }
@@ -44,7 +44,7 @@ class AwsInitializerTest {
         BDDMockito.given(dynamoProperty.endpoint()).willReturn(dynamoEndpoint);
         BDDMockito.given(awsProperties.region()).willReturn("us-east-1");
 
-        sut.amazonDynamoDB();
+        sut.amazonDynamoDB(awsProperties);
 
         verify(awsProperties).region();
         verify(awsProperties).dynamo();
