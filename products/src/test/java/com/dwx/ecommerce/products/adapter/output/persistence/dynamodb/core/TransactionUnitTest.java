@@ -15,6 +15,7 @@ import org.mockito.BDDMockito;
 import org.mockito.Mockito;
 import reactor.test.StepVerifier;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -269,12 +270,33 @@ class TransactionUnitTest {
         void shouldCommitSuccessfully() {
             final var futureTransactionResult = Mockito.mock(Future.class);
             final var transactionResult = Mockito.mock(TransactWriteItemsResult.class);
-            final var putOperation = Mockito.mock(PutItemRequest.class);
+            final var putOperation = Mockito.mock(TransactWriteItem.class);
             final var writeOperation = DynamoWriteOperation
                     .builder()
                     .identity("id")
                     .operation(putOperation)
                     .build();
+
+            sut.add(writeOperation);
+
+            StepVerifier.create(sut.commit())
+                    .consumeNextWith(hasCommited -> assertThat(hasCommited).isEqualTo(Boolean.TRUE))
+                    .verifyComplete();
+        }
+
+        @Test
+        void shouldCommitCallOperationProvider() {
+            final var futureTransactionResult = Mockito.mock(Future.class);
+            final var transactionResult = Mockito.mock(TransactWriteItemsResult.class);
+            final var putOperation = Mockito.mock(TransactWriteItem.class);
+            final var writeOperation = DynamoWriteOperation
+                    .builder()
+                    .identity("id")
+                    .operation(putOperation)
+                    .build();
+
+            final var transaction = new TransactWriteItemsRequest()
+                    .withTransactItems(List.of(putOperation));
 
             BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(Mockito.any(TransactWriteItemsRequest.class)))
                     .willReturn(futureTransactionResult);
@@ -282,9 +304,11 @@ class TransactionUnitTest {
             sut.add(writeOperation);
 
             StepVerifier.create(sut.commit())
-                    .consumeNextWith(hasCommited -> assertThat(hasCommited).isEqualTo(Boolean.TRUE))
+                    .consumeNextWith(hasCommited -> {
+                        assertThat(hasCommited).isEqualTo(Boolean.TRUE);
+                        Mockito.verify(dynamoDBAsync).transactWriteItemsAsync(transaction);
+                    })
                     .verifyComplete();
-
         }
 
 
