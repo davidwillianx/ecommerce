@@ -2,12 +2,12 @@ package com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.GetItemRequest;
-import com.amazonaws.services.dynamodbv2.model.GetItemResult;
+import com.amazonaws.services.dynamodbv2.model.*;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.command.Operation;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.Error;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.*;
+import com.dwx.ecommerce.products.adapter.output.persistence.core.error.ResourceNotFoundException;
+import com.dwx.ecommerce.products.adapter.output.persistence.core.error.TableNotFoundException;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.DynamoModel;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.Model;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.PK;
@@ -18,20 +18,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
-public class Transaction<T> implements ITransaction<T> {
+public class Transaction<R> implements ITransaction<TransactWriteItem, R> {
     private final static String ERROR_MESSAGE_TABLE_NOT_FOUND = "Table not found";
     private final static String ERROR_MESSAGE_ITEM_NOT_FOUND = "Item not found";
     private final static String ERROR_MESSAGE_UNEXPECTED_ERROR = "Unexpected error";
     private final static int TRANSACTION_LIMIT = 30;
 
     private final DbConnection connection;
-    private final List<Operation> operations = new ArrayList<>();
+    private final List<Operation<TransactWriteItem>> operations = new ArrayList<>();
 
 
     @Override
-    public Mono<T> findById(PK id, Function<Model, T> mapper) {
+    public Mono<R> findById(PK id, Function<Model, R> mapper) {
         return Mono.just(id)
                 .map(pk -> new GetItemRequest().withKey(ItemUtils.fromSimpleMap(id.getId())))
                 .map(request -> ((AmazonDynamoDBAsync) connection.get()).getItem(request))
@@ -57,6 +58,16 @@ public class Transaction<T> implements ITransaction<T> {
                     "No transaction defined"
             );
         }
+        final var dynamoOperations = operations.stream()
+                .map(Operation::getOperation)
+                .collect(Collectors.toList());
+
+        final var transaction =new TransactWriteItemsRequest()
+                .withTransactItems(dynamoOperations);
+
+        ((AmazonDynamoDBAsync) connection.get())
+                .transactWriteItemsAsync(transaction);
+
         return Mono.just(true);
     }
 
