@@ -8,6 +8,7 @@ import com.dwx.ecommerce.products.adapter.output.persistence.core.error.Error;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.*;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.ResourceNotFoundException;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.TableNotFoundException;
+import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.command.DynamoWriteOperation;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.DynamoModel;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.Model;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.PK;
@@ -21,18 +22,18 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
-public class Transaction<R> implements ITransaction<TransactWriteItem, R> {
+public class Transaction<T> implements ITransaction<T, DynamoWriteOperation> {
     private final static String ERROR_MESSAGE_TABLE_NOT_FOUND = "Table not found";
     private final static String ERROR_MESSAGE_ITEM_NOT_FOUND = "Item not found";
     private final static String ERROR_MESSAGE_UNEXPECTED_ERROR = "Unexpected error";
     private final static int TRANSACTION_LIMIT = 30;
 
     private final DbConnection connection;
-    private final List<Operation<TransactWriteItem>> operations = new ArrayList<>();
+    private final List<DynamoWriteOperation> operations = new ArrayList<>();
 
 
     @Override
-    public Mono<R> findById(PK id, Function<Model, R> mapper) {
+    public Mono<T> findById(PK id, Function<Model, T> mapper) {
         return Mono.just(id)
                 .map(pk -> new GetItemRequest().withKey(ItemUtils.fromSimpleMap(id.getId())))
                 .map(request -> ((AmazonDynamoDBAsync) connection.get()).getItem(request))
@@ -43,7 +44,7 @@ public class Transaction<R> implements ITransaction<TransactWriteItem, R> {
     }
 
     @Override
-    public void add(Operation operation) {
+    public void add(DynamoWriteOperation operation) {
         validateIdentity(operation);
         validateLimit();
         validateUniqueID(operation);
@@ -58,7 +59,7 @@ public class Transaction<R> implements ITransaction<TransactWriteItem, R> {
                     "No transaction defined"
             );
         }
-        final var dynamoOperations = operations.stream()
+        final var dynamoOperations = (List<TransactWriteItem>) operations.stream()
                 .map(Operation::getOperation)
                 .collect(Collectors.toList());
 

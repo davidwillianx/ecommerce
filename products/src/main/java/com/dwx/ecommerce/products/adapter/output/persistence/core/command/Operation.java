@@ -1,6 +1,6 @@
 package com.dwx.ecommerce.products.adapter.output.persistence.core.command;
 
-public interface Operation<T> {
+public interface Operation<O> {
     String getIdentity();
-    T getOperation();
+    O getOperation();
 }
