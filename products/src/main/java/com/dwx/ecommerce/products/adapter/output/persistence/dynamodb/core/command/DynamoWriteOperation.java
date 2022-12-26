@@ -1,6 +1,6 @@
 package com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.command;
 
-import com.amazonaws.services.dynamodbv2.model.PutItemRequest;
+import com.amazonaws.services.dynamodbv2.model.TransactWriteItem;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.command.Operation;
 import lombok.*;
 
@@ -9,7 +9,7 @@ import lombok.*;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
-public class DynamoWriteOperation implements Operation {
+public class DynamoWriteOperation implements Operation<TransactWriteItem> {
     private String identity;
-    private PutItemRequest operation;
+    private TransactWriteItem operation;
 }
