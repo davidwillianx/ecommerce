@@ -20,7 +20,7 @@ public class ProductCreateDynamoDBRepository implements ProductCreateRepository 
      return   Mono.just(cid)
                 .flatMap(it -> Mono.defer(() -> {
                     final var request  = new GetItemRequest()
-                            .withTableName("EcommerceIdempotency")
+                            .withTableName("Products")
                             .withKey(Map.of());
 
                     final var idempotency = dynamoDb.getItem(request);
@@ -48,7 +48,7 @@ public class ProductCreateDynamoDBRepository implements ProductCreateRepository 
                             .build();
                 }).doOnError(thrown -> {
                     if(thrown instanceof ConditionalCheckFailedException error) {
-                      throw new ResourceAlreadyExistsException("PROD_002", "Code already exists");
+                      throw new ResourceAlreadyExistsException("PROD_002", "Code already exists", error);
                     }
 
                     if(thrown instanceof ResourceAlreadyExistsException cidError) {
