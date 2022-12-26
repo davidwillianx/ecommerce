@@ -7,10 +7,10 @@ import reactor.core.publisher.Mono;
 
 import java.util.function.Function;
 
-public interface ITransaction<T> {
-     Mono<T> findById(PK id, Function<Model, T> mapper);
+public interface ITransaction<T , R> {
+     Mono<R> findById(PK id, Function<Model, R> mapper);
 
-     void add(Operation operation);
+     void add(Operation<T> operation);
 
      Mono<Boolean> commit();
 }
