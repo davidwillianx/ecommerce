@@ -4,17 +4,12 @@ import lombok.Getter;
 
 
 @Getter
-public class ResourceAlreadyExistsException extends RuntimeException {
-    private String code;
+public class ResourceAlreadyExistsException extends PersistenceException{
+    public ResourceAlreadyExistsException(String code, String message) {
+        super(code, message, null);
+    }
 
     public ResourceAlreadyExistsException(String code, String message, Throwable thrown) {
-        super(message, thrown);
-        this.code = code;
+        super(code, message, thrown);
     }
-
-    public ResourceAlreadyExistsException(String code, String message) {
-        super(message);
-        this.code = code;
-    }
-
 }
