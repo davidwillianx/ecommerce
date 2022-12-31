@@ -1,5 +1,4 @@
 package com.dwx.ecommerce.products.adapter.output.persistence.core.command;
 
-public interface WriteOperation<T> extends Operation<T> {
-
+public interface UpdateOperation<T> extends Operation<T> {
 }

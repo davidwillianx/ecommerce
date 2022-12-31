@@ -3,6 +3,7 @@ package com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.dynamodbv2.model.*;
+import com.dwx.ecommerce.products.adapter.output.persistence.core.DbConnection;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.ResourceNotFoundException;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.*;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.command.DynamoWriteOperation;
@@ -248,6 +249,20 @@ class TransactionUnitTest {
                     .hasMessageContaining("Operations must have at most 30 items")
                     .hasFieldOrPropertyWithValue("code", "EDB006");
         }
+
+        @Test
+        void shouldThrowErrorWhenNonMatchOperation() {
+            final var writeOperation = DynamoWriteOperation
+                    .builder()
+                    .identity("id")
+                    .build();
+
+            final var getOperation = DynamoGetOperation
+                    .builder()
+                    .identity("id2")
+                    .build();
+
+        }
     }
 
     @Nested
@@ -270,12 +285,18 @@ class TransactionUnitTest {
         void shouldCommitSuccessfully() {
             final var futureTransactionResult = Mockito.mock(Future.class);
             final var transactionResult = Mockito.mock(TransactWriteItemsResult.class);
-            final var putOperation = Mockito.mock(TransactWriteItem.class);
+            final var putOperation = Mockito.mock(Put.class);
             final var writeOperation = DynamoWriteOperation
                     .builder()
                     .identity("id")
                     .operation(putOperation)
                     .build();
+
+            final var transaction = new TransactWriteItemsRequest()
+                    .withTransactItems(new TransactWriteItem().withPut(putOperation));
+
+            BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(transaction))
+                            .willReturn(futureTransactionResult);
 
             sut.add(writeOperation);
 
@@ -288,15 +309,17 @@ class TransactionUnitTest {
         void shouldCommitCallOperationProvider() {
             final var futureTransactionResult = Mockito.mock(Future.class);
             final var transactionResult = Mockito.mock(TransactWriteItemsResult.class);
-            final var putOperation = Mockito.mock(TransactWriteItem.class);
+            final var putOperation = Mockito.mock(Put.class);
             final var writeOperation = DynamoWriteOperation
                     .builder()
                     .identity("id")
                     .operation(putOperation)
                     .build();
+            final var operation = new TransactWriteItem()
+                    .withPut(putOperation);
 
             final var transaction = new TransactWriteItemsRequest()
-                    .withTransactItems(List.of(putOperation));
+                    .withTransactItems(List.of(operation));
 
             BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(Mockito.any(TransactWriteItemsRequest.class)))
                     .willReturn(futureTransactionResult);

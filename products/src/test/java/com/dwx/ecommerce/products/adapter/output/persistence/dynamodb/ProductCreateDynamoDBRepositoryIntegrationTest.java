@@ -44,11 +44,16 @@ class ProductCreateDynamoDBRepositoryIntegrationTest {
                         sut.create(
                                 cid,
                                 Product.builder()
+                                        .id("uniqID")
                                         .code("COD1")
                                         .build()
                         )
                 )
-                .consumeErrorWith(thrown -> assertThat(thrown).isNotNull())
+                .consumeErrorWith(thrown -> {
+                    assertThat(thrown).isNotNull();
+                    final var error = (CidAlreadyInUseException) thrown;
+                    assertThat(error.getMessage()).isEqualTo("Cid is already in use");
+                })
                 .verify();
 
     }
