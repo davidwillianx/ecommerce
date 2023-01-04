@@ -1,25 +1,17 @@
 package com.dwx.ecommerce.products.adapter.output.persistence.dynamodb;
 
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
-import com.amazonaws.services.dynamodbv2.model.*;
+import com.amazonaws.services.dynamodbv2.model.Put;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.DbConnection;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.DynamoOperationType;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.Transaction;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.command.DynamoWriteOperation;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.PK;
-import com.dwx.ecommerce.products.adapter.output.persistence.error.IdempotencyException;
-import com.dwx.ecommerce.products.adapter.output.persistence.error.ResourceAlreadyExistsException;
-import com.dwx.ecommerce.products.adapter.output.persistence.error.UnexpectedOperationException;
 import com.dwx.ecommerce.products.adapter.output.persistence.model.Product;
-import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
-
-import java.util.Map;
 
 public class ProductCreateDynamoDBRepository extends Transaction<Product>
         implements ProductCreateRepository {
-
-
     public ProductCreateDynamoDBRepository(DbConnection connection) {
         super(connection);
     }

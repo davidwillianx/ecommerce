@@ -6,6 +6,7 @@ import com.amazonaws.services.dynamodbv2.model.*;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.DbConnection;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.ResourceNotFoundException;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.*;
+import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.command.DynamoGetOperation;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.command.DynamoWriteOperation;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.Model;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.PK;
@@ -284,7 +285,6 @@ class TransactionUnitTest {
         @Test
         void shouldCommitSuccessfully() {
             final var futureTransactionResult = Mockito.mock(Future.class);
-            final var transactionResult = Mockito.mock(TransactWriteItemsResult.class);
             final var putOperation = Mockito.mock(Put.class);
             final var writeOperation = DynamoWriteOperation
                     .builder()
@@ -308,7 +308,6 @@ class TransactionUnitTest {
         @Test
         void shouldCommitCallOperationProvider() {
             final var futureTransactionResult = Mockito.mock(Future.class);
-            final var transactionResult = Mockito.mock(TransactWriteItemsResult.class);
             final var putOperation = Mockito.mock(Put.class);
             final var writeOperation = DynamoWriteOperation
                     .builder()

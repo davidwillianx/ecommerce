@@ -12,7 +12,8 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
 public class DynamoWriteOperation implements Operation<Put> {
-    private OperationType type = DynamoOperationType.INSERT;
+    @Builder.Default
+    private final OperationType type = DynamoOperationType.INSERT;
     private String identity;
     private Put operation;
 

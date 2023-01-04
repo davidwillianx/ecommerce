@@ -17,24 +17,23 @@ public enum DynamoOperationType implements OperationType {
     SELECT("SELECT", o -> new TransactGetItem().withGet((Get) o.getOperation()))
     ;
 
-    private static final Map<String, Function<Operation, TransactWriteItem>> handler = Stream.of(DynamoOperationType.values())
+    private static final Map<String, Function<Operation, Object>> handler = Stream.of(DynamoOperationType.values())
             .collect(Collectors.toMap(DynamoOperationType::getName, DynamoOperationType::getMapper));
 
+    @Getter
+    private final String name;
 
     @Getter
-    private String name;
-
-    @Getter
-    private Function<Operation, TransactWriteItem> mapper;
+    private final Function<Operation, Object> mapper;
 
 
 
-    DynamoOperationType(String name, Function<Operation, TransactWriteItem> operationMapper) {
+    DynamoOperationType(String name, Function<Operation, Object> operationMapper) {
         this.name = name;
         this.mapper = operationMapper;
     }
 
-    public static Function<Operation, TransactWriteItem> find(String name) {
+    public static Function<Operation, Object> build(String name) {
         final var hasOperationName = handler.containsKey(name);
 
         if(hasOperationName) {

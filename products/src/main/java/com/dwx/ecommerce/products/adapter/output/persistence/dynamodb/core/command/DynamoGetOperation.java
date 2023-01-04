@@ -3,12 +3,15 @@ package com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.comm
 import com.amazonaws.services.dynamodbv2.model.Get;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.command.Operation;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.DynamoOperationType;
-import lombok.Getter;
+import lombok.*;
 
 
+@Builder
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
 public class DynamoGetOperation  implements Operation<Get> {
-    private DynamoOperationType type = Dy;
+    private DynamoOperationType type = DynamoOperationType.SELECT;
     private String identity;
-    private Operation operation;
+    private Get operation;
 }

@@ -5,7 +5,6 @@ import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.dynamodbv2.model.PutItemRequest;
 import com.dwx.configs.LocalstackInitializer;
 import com.dwx.ecommerce.products.adapter.output.persistence.config.RepositoryInitializer;
-import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.command.DynamoWriteOperation;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.PK;
 import com.dwx.ecommerce.products.config.aws.AwsInitializer;
 import org.junit.jupiter.api.Nested;

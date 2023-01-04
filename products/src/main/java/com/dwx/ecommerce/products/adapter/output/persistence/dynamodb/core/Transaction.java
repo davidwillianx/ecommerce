@@ -5,12 +5,10 @@ import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.dynamodbv2.model.*;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.DbConnection;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.command.Operation;
-import com.dwx.ecommerce.products.adapter.output.persistence.core.command.OperationType;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.Error;
-import com.dwx.ecommerce.products.adapter.output.persistence.core.error.*;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.ResourceNotFoundException;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.TableNotFoundException;
-import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.command.DynamoWriteOperation;
+import com.dwx.ecommerce.products.adapter.output.persistence.core.error.*;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.DynamoModel;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.Model;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.PK;
@@ -63,16 +61,25 @@ public class Transaction<T> implements ITransaction<T> {
                     "No transaction defined"
             );
         }
-        final var dynamoOperations =  operations.stream()
-                .map(o -> DynamoOperationType.find(o.getType().getName()).apply(o))
+        final var dynamo = (AmazonDynamoDBAsync) connection.get();
+
+        final var type = (DynamoOperationType) operations.get(0).getType();
+
+
+        final var dynamoOperations = operations.stream()
+                .map(o -> (TransactWriteItem) DynamoOperationType.build(type.getName()).apply(o))
                 .collect(Collectors.toList());
 
-        final var transaction = new TransactWriteItemsRequest()
-                .withTransactItems(dynamoOperations);
+        if(type.equals(DynamoOperationType.INSERT) || type.equals(DynamoOperationType.UPDATE)) {
+            final var transaction = new TransactWriteItemsRequest()
+                    .withTransactItems(dynamoOperations);
 
-        return Mono.just(((AmazonDynamoDBAsync) connection.get())
-                        .transactWriteItems(transaction))
-                .thenReturn(Boolean.TRUE);
+
+          return Mono.just(dynamo.transactWriteItemsAsync(transaction))
+                   .thenReturn(Boolean.TRUE);
+        }
+
+        return null;
     }
 
     private Map<String, AttributeValue> mapDynamoResponse(GetItemResult response) {
