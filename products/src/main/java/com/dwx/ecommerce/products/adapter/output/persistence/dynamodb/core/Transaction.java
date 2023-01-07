@@ -19,6 +19,7 @@ import reactor.core.publisher.Mono;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -74,9 +75,9 @@ public class Transaction<T> implements ITransaction<T> {
             final var transaction = new TransactWriteItemsRequest()
                     .withTransactItems(dynamoOperations);
 
-
-          return Mono.just(dynamo.transactWriteItemsAsync(transaction))
-                   .thenReturn(Boolean.TRUE);
+            return Mono.fromFuture(() -> CompletableFuture.supplyAsync(
+                    () -> dynamo.transactWriteItemsAsync(transaction)
+            )).thenReturn(Boolean.TRUE);
         }
 
         return null;
