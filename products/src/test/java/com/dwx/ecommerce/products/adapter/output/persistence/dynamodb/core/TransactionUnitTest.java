@@ -325,7 +325,7 @@ class TransactionUnitTest {
                     .willReturn(futureTransactionResult);
 
             BDDMockito.given(futureTransactionResult.get())
-                            .willReturn(result);
+                    .willReturn(result);
             sut.add(writeOperation);
 
             StepVerifier.create(sut.commit())
