@@ -296,7 +296,7 @@ class TransactionUnitTest {
                     .withTransactItems(new TransactWriteItem().withPut(putOperation));
 
             BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(transaction))
-                            .willReturn(futureTransactionResult);
+                    .willReturn(futureTransactionResult);
 
             sut.add(writeOperation);
 
@@ -306,8 +306,9 @@ class TransactionUnitTest {
         }
 
         @Test
-        void shouldCommitCallOperationProvider() {
+        void shouldCommitCallOperationProvider() throws ExecutionException, InterruptedException {
             final var futureTransactionResult = Mockito.mock(Future.class);
+            final var result = Mockito.mock(TransactWriteItemsResult.class);
             final var putOperation = Mockito.mock(Put.class);
             final var writeOperation = DynamoWriteOperation
                     .builder()
@@ -323,11 +324,13 @@ class TransactionUnitTest {
             BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(Mockito.any(TransactWriteItemsRequest.class)))
                     .willReturn(futureTransactionResult);
 
+            BDDMockito.given(futureTransactionResult.get())
+                            .willReturn(result);
             sut.add(writeOperation);
 
             StepVerifier.create(sut.commit())
-                    .consumeNextWith(hasCommited -> {
-                        assertThat(hasCommited).isEqualTo(Boolean.TRUE);
+                    .consumeNextWith(hasCommitted -> {
+                        assertThat(hasCommitted).isEqualTo(Boolean.TRUE);
                         Mockito.verify(dynamoDBAsync).transactWriteItemsAsync(transaction);
                     })
                     .verifyComplete();
