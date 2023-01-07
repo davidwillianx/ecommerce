@@ -77,7 +77,32 @@ public class Transaction<T> implements ITransaction<T> {
 
             return Mono.fromFuture(() -> CompletableFuture.supplyAsync(
                     () -> dynamo.transactWriteItemsAsync(transaction)
-            )).thenReturn(Boolean.TRUE);
+            ))
+                    .onErrorMap(thrown -> {
+                        if(thrown instanceof TransactionCanceledException error) {
+                            return error.getCancellationReasons()
+                                    .stream()
+                                    .filter(reason -> reason.getCode().equals("CONDITIONAL_CHECK_FAILED"))
+                                    .findFirst()
+                                    .map(e -> {
+                                        final var errorIndexMatcher = error.getCancellationReasons().indexOf(e);
+                                       final var operationError =  operations.get(errorIndexMatcher)
+                                                .getErrorConverter()
+                                                .apply(e);
+
+                                       return(Throwable) operationError;
+                                    })
+                                    .orElseThrow(() -> new UnexpectedProviderBehaviorException(
+                                            Error.UNEXPECTED_BEHAVIOR.getCode(),
+                                            "Provider error",
+                                            error
+                                    ));
+                        }
+
+                        return null;
+                    })
+                    .thenReturn(Boolean.TRUE);
+
         }
 
         return null;
