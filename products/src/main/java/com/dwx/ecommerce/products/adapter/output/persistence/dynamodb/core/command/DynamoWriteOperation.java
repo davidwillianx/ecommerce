@@ -1,10 +1,13 @@
 package com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.command;
 
+import com.amazonaws.services.dynamodbv2.model.CancellationReason;
 import com.amazonaws.services.dynamodbv2.model.Put;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.command.Operation;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.command.OperationType;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.DynamoOperationType;
 import lombok.*;
+
+import java.util.function.Function;
 
 
 @Builder
@@ -16,6 +19,8 @@ public class DynamoWriteOperation implements Operation<Put> {
     private final OperationType type = DynamoOperationType.INSERT;
     private String identity;
     private Put operation;
+    private Function<CancellationReason, Throwable> errorConverter;
+
 
 
 }
