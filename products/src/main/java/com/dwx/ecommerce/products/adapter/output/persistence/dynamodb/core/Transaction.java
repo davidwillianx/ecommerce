@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -28,6 +29,8 @@ public class Transaction<T> implements ITransaction<T> {
     private final static String ERROR_MESSAGE_TABLE_NOT_FOUND = "Table not found";
     private final static String ERROR_MESSAGE_ITEM_NOT_FOUND = "Item not found";
     private final static String ERROR_MESSAGE_UNEXPECTED_ERROR = "Unexpected error";
+
+    private final static String CONDITIONAL_CHECK_FAILED = "ConditionalCheckFailed";
     private final static int TRANSACTION_LIMIT = 30;
 
     @Getter
@@ -71,26 +74,35 @@ public class Transaction<T> implements ITransaction<T> {
                 .map(o -> (TransactWriteItem) DynamoOperationType.build(type.getName()).apply(o))
                 .collect(Collectors.toList());
 
-        if(type.equals(DynamoOperationType.INSERT) || type.equals(DynamoOperationType.UPDATE)) {
+        if (type.equals(DynamoOperationType.INSERT) || type.equals(DynamoOperationType.UPDATE)) {
             final var transaction = new TransactWriteItemsRequest()
                     .withTransactItems(dynamoOperations);
 
             return Mono.fromFuture(() -> CompletableFuture.supplyAsync(
-                    () -> dynamo.transactWriteItemsAsync(transaction)
-            ))
+                            () -> {
+                                try {
+                                    return dynamo.transactWriteItemsAsync(transaction).get();
+                                } catch (InterruptedException e) {
+                                    throw new RuntimeException(e);
+                                } catch (ExecutionException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                    ))
                     .onErrorMap(thrown -> {
-                        if(thrown instanceof TransactionCanceledException error) {
+                        final var transactionError = thrown.getCause().getCause();
+                        if (transactionError instanceof TransactionCanceledException error) {
                             return error.getCancellationReasons()
                                     .stream()
-                                    .filter(reason -> reason.getCode().equals("CONDITIONAL_CHECK_FAILED"))
+                                    .filter(reason -> reason.getCode().equals(CONDITIONAL_CHECK_FAILED))
                                     .findFirst()
                                     .map(e -> {
                                         final var errorIndexMatcher = error.getCancellationReasons().indexOf(e);
-                                       final var operationError =  operations.get(errorIndexMatcher)
+                                        final var operationError = operations.get(errorIndexMatcher)
                                                 .getErrorConverter()
                                                 .apply(e);
 
-                                       return(Throwable) operationError;
+                                        return (Throwable) operationError;
                                     })
                                     .orElseThrow(() -> new UnexpectedProviderBehaviorException(
                                             Error.UNEXPECTED_BEHAVIOR.getCode(),
@@ -99,7 +111,11 @@ public class Transaction<T> implements ITransaction<T> {
                                     ));
                         }
 
-                        return null;
+                        return new UnexpectedProviderBehaviorException(
+                                Error.UNEXPECTED_BEHAVIOR.getCode(),
+                                "Provider error",
+                                thrown
+                        );
                     })
                     .thenReturn(Boolean.TRUE);
 
