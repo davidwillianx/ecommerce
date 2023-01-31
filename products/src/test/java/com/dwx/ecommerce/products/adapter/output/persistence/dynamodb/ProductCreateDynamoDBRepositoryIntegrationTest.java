@@ -4,6 +4,7 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.dwx.configs.LocalstackInitializer;
 import com.dwx.ecommerce.products.adapter.output.persistence.config.RepositoryInitializer;
+import com.dwx.ecommerce.products.adapter.output.persistence.error.IdempotencyException;
 import com.dwx.ecommerce.products.adapter.output.persistence.model.Product;
 import com.dwx.ecommerce.products.config.aws.AwsInitializer;
 import org.junit.jupiter.api.Test;
@@ -30,12 +31,14 @@ class ProductCreateDynamoDBRepositoryIntegrationTest {
     AmazonDynamoDBAsync amazonDynamoDBAsync;
 
     @Test
-    void shouldThrowErrorWhenCidAlreadyExists() {
+    void shouldThrowErrorWhenIdempotencyCheckAlreadyExists() {
         final var cid = UUID.randomUUID().toString();
+        final var externalId = UUID.randomUUID().toString();
+
 
         final var idempotencyRegister = Map.of(
                 "PK", new AttributeValue().withS("IDEMPOTENCY#" + cid),
-                 "SK", new AttributeValue(cid)
+                 "SK", new AttributeValue(externalId)
         );
 
         amazonDynamoDBAsync.putItem("Products", idempotencyRegister);
@@ -44,15 +47,15 @@ class ProductCreateDynamoDBRepositoryIntegrationTest {
                         sut.create(
                                 cid,
                                 Product.builder()
-                                        .id("uniqID")
-                                        .code("COD1")
+                                        .id(externalId)
+                                        .code("code12131")
                                         .build()
                         )
                 )
                 .consumeErrorWith(thrown -> {
                     assertThat(thrown).isNotNull();
-                    final var error = (CidAlreadyInUseException) thrown;
-                    assertThat(error.getMessage()).isEqualTo("Cid is already in use");
+                    final var error = (IdempotencyException) thrown;
+                    assertThat(error.getMessage()).isEqualTo("Idempotency check already in use");
                 })
                 .verify();
 
