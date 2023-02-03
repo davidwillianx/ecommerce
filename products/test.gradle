@@ -1,0 +1,39 @@
+sourceSets {
+    intTest {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+test {
+    useJUnitPlatform()
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = false
+        csv.required = false
+        html.outputLocation = layout.buildDirectory.dir("jacocoHtml")
+    }
+}
+
+tasks.register("integrationTests", Test) {
+    group "verification"
+    description "Run all integration tests"
+    testClassesDirs = sourceSets.intTest.output.classesDirs
+    classpath = sourceSets.intTest.runtimeClasspath
+    include "**/*IntegrationTest.class"
+
+    useJUnitPlatform()
+}
+
+tasks.register("unitTests", Test) {
+    group "verification"
+    description "Run all integration tests"
+    testClassesDirs = sourceSets.intTest.output.classesDirs
+    classpath = sourceSets.intTest.runtimeClasspath
+    include "**/*UnitTest.class"
+
+    useJUnitPlatform()
+}
+check.dependsOn integrationTests, unitTests

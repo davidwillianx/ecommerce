@@ -2,6 +2,7 @@ plugins {
 	id 'org.springframework.boot' version '2.7.4'
 	id 'io.spring.dependency-management' version '1.0.14.RELEASE'
 	id 'java'
+	id 'jacoco'
 }
 
 group = 'com.dwx.ecommerce'
@@ -32,6 +33,4 @@ dependencies {
 	testImplementation 'org.assertj:assertj-core:3.23.1'
 }
 
-tasks.named('test') {
-	useJUnitPlatform()
-}
+apply from: 'test.gradle'
