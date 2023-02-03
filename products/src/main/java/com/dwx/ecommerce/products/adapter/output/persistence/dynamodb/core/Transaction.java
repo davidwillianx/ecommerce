@@ -8,6 +8,7 @@ import com.dwx.ecommerce.products.adapter.output.persistence.core.command.Operat
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.Error;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.ResourceNotFoundException;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.TableNotFoundException;
+import com.dwx.ecommerce.products.adapter.output.persistence.core.error.UnsupportedOperationException;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.*;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.DynamoModel;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.Model;
@@ -36,6 +37,12 @@ public class Transaction<T> implements ITransaction<T> {
     @Getter
     private final DbConnection connection;
     private final List<Operation> operations = new ArrayList<>();
+
+    private final Function<Throwable, UnexpectedProviderBehaviorException> handleAwsError = error -> new UnexpectedProviderBehaviorException(
+            Error.UNEXPECTED_BEHAVIOR.getCode(),
+            "Provider error",
+            error
+    );
 
 
     @Override
@@ -104,25 +111,18 @@ public class Transaction<T> implements ITransaction<T> {
 
                                         return (Throwable) operationError;
                                     })
-                                    .orElseThrow(() -> new UnexpectedProviderBehaviorException(
-                                            Error.UNEXPECTED_BEHAVIOR.getCode(),
-                                            "Provider error",
-                                            error
-                                    ));
+                                    .orElseThrow(() ->handleAwsError.apply(error));
                         }
 
-                        return new UnexpectedProviderBehaviorException(
-                                Error.UNEXPECTED_BEHAVIOR.getCode(),
-                                "Provider error",
-                                thrown
-                        );
+                        return handleAwsError.apply(thrown);
                     })
                     .thenReturn(Boolean.TRUE);
 
         }
 
-        return null;
+        throw  new UnsupportedOperationException();
     }
+
 
     private Map<String, AttributeValue> mapDynamoResponse(GetItemResult response) {
         final var hasItemFound = response != null
