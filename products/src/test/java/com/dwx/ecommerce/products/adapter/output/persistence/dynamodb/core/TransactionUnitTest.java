@@ -179,8 +179,6 @@ class TransactionUnitTest {
         }
 
 
-
-
         static class ContextModelResult {
             private String code;
 
@@ -341,7 +339,7 @@ class TransactionUnitTest {
 
         @Test
         void shouldThrowErrorCommitOperationFail() throws ExecutionException, InterruptedException {
-            final var mockError =Mockito.mock(TransactionCanceledException.class);
+            final var mockError = Mockito.mock(TransactionCanceledException.class);
             final var putOperation = Mockito.mock(Put.class);
             final var writeOperation = DynamoWriteOperation
                     .builder()
@@ -364,11 +362,13 @@ class TransactionUnitTest {
         }
 
         @Test
-        void shouldThrowErrorForSpecificTransactionItem() {
+        void shouldThrowErrorForSpecificTransactionItem() throws ExecutionException, InterruptedException {
+            final var executionError = Mockito.mock(ExecutionException.class);
             final var mockError = Mockito.mock(TransactionCanceledException.class);
             final var mockReason1 = Mockito.mock(CancellationReason.class);
             final var mockReason2 = Mockito.mock(CancellationReason.class);
             final var putOperation = Mockito.mock(Put.class);
+            final var futureResult = Mockito.mock(Future.class);
             final var writeOperation1 = DynamoWriteOperation
                     .builder()
                     .identity("id")
@@ -383,18 +383,23 @@ class TransactionUnitTest {
                     .operation(putOperation)
                     .build();
 
-
             BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(Mockito.any(TransactWriteItemsRequest.class)))
-                    .willThrow(mockError);
+                    .willReturn(futureResult);
+
+            BDDMockito.given(futureResult.get())
+                    .willThrow(executionError);
+
+            BDDMockito.given(executionError.getCause())
+                    .willReturn(mockError);
 
             BDDMockito.given(mockError.getCancellationReasons())
-                            .willReturn(List.of(mockReason1, mockReason2));
+                    .willReturn(List.of(mockReason1, mockReason2));
 
             BDDMockito.given(mockReason1.getCode())
-                            .willReturn("SOMETHING_ELSE");
+                    .willReturn("SOMETHING_ELSE");
 
             BDDMockito.given(mockReason2.getCode())
-                            .willReturn("CONDITIONAL_CHECK_FAILED");
+                    .willReturn("ConditionalCheckFailed");
 
             sut.add(writeOperation1);
             sut.add(writeOperation2);
@@ -413,10 +418,12 @@ class TransactionUnitTest {
         }
 
         @Test
-        void shouldThrowUnexpectedErrorWhenNoConditionalCheckErrorHaveThrown() {
-            final var mockError = Mockito.mock(TransactionCanceledException.class);
+        void shouldThrowUnexpectedErrorWhenNoConditionalCheckErrorHaveThrown() throws ExecutionException, InterruptedException {
+            final var futureError = Mockito.mock(ExecutionException.class);
+            final var errorResult = Mockito.mock(TransactionCanceledException.class);
             final var mockReason1 = Mockito.mock(CancellationReason.class);
             final var putOperation = Mockito.mock(Put.class);
+            final var futureResult = Mockito.mock(Future.class);
             final var writeOperation1 = DynamoWriteOperation
                     .builder()
                     .identity("id")
@@ -425,9 +432,15 @@ class TransactionUnitTest {
                     .build();
 
             BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(Mockito.any(TransactWriteItemsRequest.class)))
-                    .willThrow(mockError);
+                    .willReturn(futureResult);
 
-            BDDMockito.given(mockError.getCancellationReasons())
+            BDDMockito.given(futureResult.get())
+                    .willThrow(futureError);
+
+            BDDMockito.given(futureError.getCause())
+                            .willReturn(errorResult);
+
+            BDDMockito.given(errorResult.getCancellationReasons())
                     .willReturn(List.of(mockReason1));
 
             BDDMockito.given(mockReason1.getCode())
