@@ -5,8 +5,8 @@ import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.dwx.configs.LocalstackInitializer;
 import com.dwx.ecommerce.products.adapter.output.persistence.config.RepositoryInitializer;
 import com.dwx.ecommerce.products.adapter.output.persistence.error.IdempotencyException;
-import com.dwx.ecommerce.products.adapter.output.persistence.model.Product;
-import com.dwx.ecommerce.products.config.aws.AwsInitializer;
+import com.dwx.ecommerce.products.adapter.config.aws.AwsInitializer;
+import com.dwx.ecommerce.products.application.domain.Product;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -44,7 +44,7 @@ class ProductCreateDynamoDBRepositoryIntegrationTest {
         amazonDynamoDBAsync.putItem("Products", idempotencyRegister);
 
         StepVerifier.create(
-                        sut.create(
+                        sut.execute(
                                 cid,
                                 Product.builder()
                                         .id(externalId)
@@ -58,7 +58,6 @@ class ProductCreateDynamoDBRepositoryIntegrationTest {
                     assertThat(error.getMessage()).isEqualTo("Idempotency check already in use");
                 })
                 .verify();
-
     }
 
 

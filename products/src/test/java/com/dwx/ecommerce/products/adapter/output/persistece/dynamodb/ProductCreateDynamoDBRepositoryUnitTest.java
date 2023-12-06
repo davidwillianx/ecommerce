@@ -7,10 +7,10 @@ import com.amazonaws.services.dynamodbv2.model.TransactionCanceledException;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.DbConnection;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.UnexpectedProviderBehaviorException;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.ProductCreateDynamoDBRepository;
-import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.ProductCreateRepository;
+import com.dwx.ecommerce.products.application.domain.Product;
+import com.dwx.ecommerce.products.application.ports.database.ProductCreateRepository;
 import com.dwx.ecommerce.products.adapter.output.persistence.error.IdempotencyException;
 import com.dwx.ecommerce.products.adapter.output.persistence.error.ResourceAlreadyExistsException;
-import com.dwx.ecommerce.products.adapter.output.persistence.model.Product;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.BDDMockito;
@@ -69,7 +69,7 @@ class ProductCreateDynamoDBRepositoryUnitTest {
         BDDMockito.given(transactCanceledException.getCancellationReasons())
                 .willReturn(reasons);
 
-        StepVerifier.create(sut.create(cid, product))
+        StepVerifier.create(sut.execute(cid, product))
                 .consumeErrorWith(thrown -> {
                     assertThat(thrown).isInstanceOf(IdempotencyException.class);
                     final var result = (IdempotencyException) thrown;
@@ -111,7 +111,7 @@ class ProductCreateDynamoDBRepositoryUnitTest {
         BDDMockito.given(transactCanceledException.getCancellationReasons())
                 .willReturn(reasons);
 
-        StepVerifier.create(sut.create(cid, product))
+        StepVerifier.create(sut.execute(cid, product))
                 .consumeErrorWith(thrown -> {
                     assertThat(thrown).isInstanceOf(ResourceAlreadyExistsException.class);
                     final var result = (ResourceAlreadyExistsException) thrown;
@@ -138,7 +138,7 @@ class ProductCreateDynamoDBRepositoryUnitTest {
                 .willThrow(new InterruptedException());
 
 
-       StepVerifier.create(sut.create(cid, product))
+       StepVerifier.create(sut.execute(cid, product))
                 .consumeErrorWith(thrown -> {
                     assertThat(thrown).isInstanceOf(UnexpectedProviderBehaviorException.class);
                     final var error = (UnexpectedProviderBehaviorException) thrown;
@@ -167,7 +167,7 @@ class ProductCreateDynamoDBRepositoryUnitTest {
         BDDMockito.given(futureResult.get())
                         .willReturn(transactionResult);
 
-        StepVerifier.create(sut.create(cid, product))
+        StepVerifier.create(sut.execute(cid, product))
                 .consumeNextWith(p ->
                     assertThat(p.getCode()).isEqualTo(code)
                 )

@@ -2,7 +2,7 @@ package com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.conv
 
 
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.dwx.ecommerce.products.adapter.output.persistence.model.Product;
+import com.dwx.ecommerce.products.adapter.output.persistence.model.ProductDto;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -17,7 +17,7 @@ class ProductConverterUnitTest {
 
     @Test
     void shouldMapToDynamo() {
-        final var product = Product.builder()
+        final var product = ProductDto.builder()
                 .id("id")
                 .code("code")
                 .price(BigDecimal.ONE)

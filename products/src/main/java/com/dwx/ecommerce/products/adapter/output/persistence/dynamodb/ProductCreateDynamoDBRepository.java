@@ -8,11 +8,13 @@ import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.Trans
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.command.DynamoWriteOperation;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.PK;
 import com.dwx.ecommerce.products.adapter.output.persistence.error.ResourceAlreadyExistsException;
-import com.dwx.ecommerce.products.adapter.output.persistence.model.Product;
+import com.dwx.ecommerce.products.adapter.output.persistence.model.ProductDto;
+import com.dwx.ecommerce.products.application.domain.Product;
+import com.dwx.ecommerce.products.application.ports.database.ProductCreateRepository;
 import reactor.core.publisher.Mono;
 
 
-public class ProductCreateDynamoDBRepository extends Transaction<Product>
+public class ProductCreateDynamoDBRepository extends Transaction<ProductDto>
         implements ProductCreateRepository {
 
     private static final String ENTITY_NAME = "Products";
@@ -22,9 +24,9 @@ public class ProductCreateDynamoDBRepository extends Transaction<Product>
     }
 
     @Override
-    public Mono<Product> create(String cid, Product product) {
+    public Mono<Product> execute(String trackingId, Product product) {
 
-        return Mono.just(cid)
+        return Mono.just(trackingId)
                 .doOnNext(it -> {
                     final var pk = PK.builder()
                             .PK(product.getId())
@@ -36,7 +38,7 @@ public class ProductCreateDynamoDBRepository extends Transaction<Product>
                             .withItem(ItemUtils.fromSimpleMap(pk.getId()));
 
                     this.add(IdempotencyOperationBuilder.builder()
-                            .transactionId(cid)
+                            .transactionId(trackingId)
                             .entityName(ENTITY_NAME)
                             .pk(pk)
                             .build()
@@ -44,7 +46,7 @@ public class ProductCreateDynamoDBRepository extends Transaction<Product>
                     );
 
                     this.add(DynamoWriteOperation.builder()
-                            .identity(cid)
+                            .identity(trackingId)
                             .operation(persist)
                             .errorConverter(e -> new ResourceAlreadyExistsException(
                                     "Code already exists"
