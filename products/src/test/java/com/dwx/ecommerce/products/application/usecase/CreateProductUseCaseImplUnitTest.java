@@ -13,6 +13,8 @@ import reactor.test.StepVerifier;
 
 import java.math.BigDecimal;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 class CreateProductUseCaseImplUnitTest {
     CreateProductUseCase sut;
     ProductCreateRepository repository;
@@ -60,6 +62,7 @@ class CreateProductUseCaseImplUnitTest {
 
         StepVerifier.create(sut.execute(trackingId, product))
                 .assertNext(result -> {
+                    assertThat(result).isNotNull();
                     Mockito.verify(repository).execute(trackingId, product);
                 })
                 .verifyComplete();
