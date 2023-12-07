@@ -4,19 +4,26 @@ import com.dwx.ecommerce.products.application.domain.Product;
 import com.dwx.ecommerce.products.application.usecase.CreateProductUseCase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
-import java.lang.reflect.MalformedParametersException;
 import java.net.URI;
 import java.util.Objects;
 
+@RestController("/products")
 @RequiredArgsConstructor
 public class PostProductController {
     private final CreateProductUseCase useCase;
 
+    @GetMapping
+    public Mono<Boolean> get() {
+        return Mono.just(Boolean.TRUE);
+    }
+
+    @PostMapping
     public Mono<ResponseEntity<PostProductResponseDto>> execute(
-            String trackingId,
-            PostProductDto product
+            @RequestHeader("tracking_id") String trackingId,
+            @RequestBody PostProductDto product
     ) {
         return Mono.just(product)
                 .doOnNext(it -> {
