@@ -40,6 +40,7 @@ class PostProductControllerUnitTest {
         final var product = PostProductDto.builder()
                 .code("00")
                 .name("Smartphone")
+                .category(CategoryDto.ELECTRONIC)
                 .build();
 
         BDDMockito.given(useCase.execute(
@@ -69,6 +70,7 @@ class PostProductControllerUnitTest {
         final var product = PostProductDto.builder()
                 .code("00")
                 .name("Smartphone")
+                .category(CategoryDto.FURNITURE)
                 .build();
 
         BDDMockito.given(useCase.execute(
@@ -87,6 +89,24 @@ class PostProductControllerUnitTest {
 
                     assertThat(result.getBody().getCode()).isEqualTo("00");
                     assertThat(result.getBody().getName()).isEqualTo("Smartphone");
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldExecuteReturnsErrorWhenCategoryIsMissing(){
+        final var product = PostProductDto.builder()
+                .code("00")
+                .name("Product")
+                .build();
+
+        StepVerifier.create(sut.execute(
+                "trackingId",
+                        product
+                ))
+                .assertNext(result -> {
+                    assertThat(result).isNotNull();
+                    assertThat(result.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
                 })
                 .verifyComplete();
     }

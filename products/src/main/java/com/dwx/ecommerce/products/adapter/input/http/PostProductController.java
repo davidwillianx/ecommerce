@@ -10,15 +10,11 @@ import reactor.core.publisher.Mono;
 import java.net.URI;
 import java.util.Objects;
 
-@RestController("/products")
+@RestController
+@RequestMapping("/products")
 @RequiredArgsConstructor
 public class PostProductController {
     private final CreateProductUseCase useCase;
-
-    @GetMapping
-    public Mono<Boolean> get() {
-        return Mono.just(Boolean.TRUE);
-    }
 
     @PostMapping
     public Mono<ResponseEntity<PostProductResponseDto>> execute(
@@ -30,6 +26,12 @@ public class PostProductController {
                     if (Objects.isNull(it.getName())) {
                         throw new InvalidPayloadException("Missing required attribute");
                     }
+                })
+                .doOnNext(it -> {
+                    if (Objects.isNull(it.getCategory())) {
+                        throw new InvalidPayloadException("Missing required attribute");
+                    }
+
                 })
                 .map(it -> Product.builder()
                         .code(it.getCode())
