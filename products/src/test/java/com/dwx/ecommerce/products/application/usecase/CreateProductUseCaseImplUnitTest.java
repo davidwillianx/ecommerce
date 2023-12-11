@@ -2,6 +2,7 @@ package com.dwx.ecommerce.products.application.usecase;
 
 
 import com.dwx.ecommerce.products.application.domain.Product;
+import com.dwx.ecommerce.products.application.domain.ProductCategory;
 import com.dwx.ecommerce.products.application.ports.database.ProductCreateRepository;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,6 +65,37 @@ class CreateProductUseCaseImplUnitTest {
                 .assertNext(result -> {
                     assertThat(result).isNotNull();
                     Mockito.verify(repository).execute(trackingId, product);
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldExecuteSaveProductCategory(){
+        final var trackingId = "trackingId";
+        final var product = Product.builder()
+                .code("code")
+                .price(BigDecimal.valueOf(23.00))
+                .category(ProductCategory.BEAUTY)
+                .build();
+
+        BDDMockito.given(repository.execute(
+                Mockito.anyString(),
+                Mockito.any(Product.class)
+        )).willReturn(Mono.just(
+                Product.builder().build()
+        ));
+
+        StepVerifier.create(sut.execute(trackingId, product))
+                .assertNext(result -> {
+                    assertThat(result).isNotNull();
+                    Mockito.verify(repository).execute(
+                            Mockito.eq(trackingId),
+                            Mockito.argThat(item -> {
+                                assertThat(item.getCategory()).isEqualTo(ProductCategory.BEAUTY);
+                                return Boolean.TRUE;
+
+                            })
+                    );
                 })
                 .verifyComplete();
     }
