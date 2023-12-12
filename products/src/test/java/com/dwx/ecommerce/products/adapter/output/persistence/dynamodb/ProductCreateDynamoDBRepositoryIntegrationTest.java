@@ -77,7 +77,7 @@ class ProductCreateDynamoDBRepositoryIntegrationTest {
                     getRequest.addKeyEntry("PK", new AttributeValue().withS(result.getCode()));
                     getRequest.addKeyEntry("SK", new AttributeValue().withS(result.getCategory().name()));
 
-                    final var hasSuccessfullyPersisted = amazonDynamoDBAsync.getItem(getRequest).getItem().size() > 0;
+                    final var hasSuccessfullyPersisted = !amazonDynamoDBAsync.getItem(getRequest).getItem().isEmpty();
                     assertThat(hasSuccessfullyPersisted).isTrue();
                 })
                 .verifyComplete();

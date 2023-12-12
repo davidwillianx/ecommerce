@@ -8,4 +8,5 @@ import lombok.Getter;
 public class PostProductDto {
     private String code;
     private String name;
+    private CategoryDto category;
 }
