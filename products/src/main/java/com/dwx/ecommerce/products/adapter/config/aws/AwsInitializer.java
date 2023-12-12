@@ -1,4 +1,4 @@
-package com.dwx.ecommerce.products.config.aws;
+package com.dwx.ecommerce.products.adapter.config.aws;
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;

@@ -3,8 +3,11 @@ package com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.dynamodbv2.model.*;
+import com.dwx.ecommerce.products.adapter.output.persistence.core.DbConnection;
+import com.dwx.ecommerce.products.adapter.output.persistence.core.error.Error;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.ResourceNotFoundException;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.*;
+import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.command.DynamoGetOperation;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.command.DynamoWriteOperation;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.Model;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.PK;
@@ -152,7 +155,7 @@ class TransactionUnitTest {
         }
 
         @Test
-        void shouldHandleDBProviderUntrackeableErrors() {
+        void shouldHandleDBProviderUntraceableErrors() {
             sut = new Transaction<ContextModelResult>(connection);
             final var id = PK.builder()
                     .PK("PK")
@@ -248,6 +251,20 @@ class TransactionUnitTest {
                     .hasMessageContaining("Operations must have at most 30 items")
                     .hasFieldOrPropertyWithValue("code", "EDB006");
         }
+
+        @Test
+        void shouldThrowErrorWhenNonMatchOperation() {
+            final var writeOperation = DynamoWriteOperation
+                    .builder()
+                    .identity("id")
+                    .build();
+
+            final var getOperation = DynamoGetOperation
+                    .builder()
+                    .identity("id2")
+                    .build();
+
+        }
     }
 
     @Nested
@@ -269,13 +286,18 @@ class TransactionUnitTest {
         @Test
         void shouldCommitSuccessfully() {
             final var futureTransactionResult = Mockito.mock(Future.class);
-            final var transactionResult = Mockito.mock(TransactWriteItemsResult.class);
-            final var putOperation = Mockito.mock(TransactWriteItem.class);
+            final var putOperation = Mockito.mock(Put.class);
             final var writeOperation = DynamoWriteOperation
                     .builder()
                     .identity("id")
                     .operation(putOperation)
                     .build();
+
+            final var transaction = new TransactWriteItemsRequest()
+                    .withTransactItems(new TransactWriteItem().withPut(putOperation));
+
+            BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(transaction))
+                    .willReturn(futureTransactionResult);
 
             sut.add(writeOperation);
 
@@ -285,30 +307,159 @@ class TransactionUnitTest {
         }
 
         @Test
-        void shouldCommitCallOperationProvider() {
+        void shouldCommitCallOperationProvider() throws ExecutionException, InterruptedException {
             final var futureTransactionResult = Mockito.mock(Future.class);
-            final var transactionResult = Mockito.mock(TransactWriteItemsResult.class);
-            final var putOperation = Mockito.mock(TransactWriteItem.class);
+            final var result = Mockito.mock(TransactWriteItemsResult.class);
+            final var putOperation = Mockito.mock(Put.class);
             final var writeOperation = DynamoWriteOperation
                     .builder()
                     .identity("id")
                     .operation(putOperation)
                     .build();
+            final var operation = new TransactWriteItem()
+                    .withPut(putOperation);
 
             final var transaction = new TransactWriteItemsRequest()
-                    .withTransactItems(List.of(putOperation));
+                    .withTransactItems(List.of(operation));
 
             BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(Mockito.any(TransactWriteItemsRequest.class)))
                     .willReturn(futureTransactionResult);
 
+            BDDMockito.given(futureTransactionResult.get())
+                    .willReturn(result);
             sut.add(writeOperation);
 
             StepVerifier.create(sut.commit())
-                    .consumeNextWith(hasCommited -> {
-                        assertThat(hasCommited).isEqualTo(Boolean.TRUE);
+                    .consumeNextWith(hasCommitted -> {
+                        assertThat(hasCommitted).isEqualTo(Boolean.TRUE);
                         Mockito.verify(dynamoDBAsync).transactWriteItemsAsync(transaction);
                     })
                     .verifyComplete();
+        }
+
+        @Test
+        void shouldThrowErrorCommitOperationFail() throws ExecutionException, InterruptedException {
+            final var mockError = Mockito.mock(TransactionCanceledException.class);
+            final var putOperation = Mockito.mock(Put.class);
+            final var writeOperation = DynamoWriteOperation
+                    .builder()
+                    .identity("id")
+                    .errorConverter(ce -> new ResourceNotFoundException("20", "NotFound"))
+                    .operation(putOperation)
+                    .build();
+
+            BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(Mockito.any(TransactWriteItemsRequest.class)))
+                    .willThrow(mockError);
+
+            sut.add(writeOperation);
+
+            StepVerifier.create(sut.commit())
+                    .consumeErrorWith(thrown -> {
+                        assertThat(thrown).isNotNull();
+                        assertThat(thrown).isNotInstanceOf(TransactionCanceledException.class);
+                    })
+                    .verify();
+        }
+
+        @Test
+        void shouldThrowErrorForSpecificTransactionItem() throws ExecutionException, InterruptedException {
+            final var executionError = Mockito.mock(ExecutionException.class);
+            final var mockError = Mockito.mock(TransactionCanceledException.class);
+            final var mockReason1 = Mockito.mock(CancellationReason.class);
+            final var mockReason2 = Mockito.mock(CancellationReason.class);
+            final var putOperation = Mockito.mock(Put.class);
+            final var futureResult = Mockito.mock(Future.class);
+            final var writeOperation1 = DynamoWriteOperation
+                    .builder()
+                    .identity("id")
+                    .errorConverter(ce -> new ResourceNotFoundException("20", "NotFound"))
+                    .operation(putOperation)
+                    .build();
+
+            final var writeOperation2 = DynamoWriteOperation
+                    .builder()
+                    .identity("id")
+                    .errorConverter(ce -> new ResourceNotFoundException("21", "NotFound1"))
+                    .operation(putOperation)
+                    .build();
+
+            BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(Mockito.any(TransactWriteItemsRequest.class)))
+                    .willReturn(futureResult);
+
+            BDDMockito.given(futureResult.get())
+                    .willThrow(executionError);
+
+            BDDMockito.given(executionError.getCause())
+                    .willReturn(mockError);
+
+            BDDMockito.given(mockError.getCancellationReasons())
+                    .willReturn(List.of(mockReason1, mockReason2));
+
+            BDDMockito.given(mockReason1.getCode())
+                    .willReturn("SOMETHING_ELSE");
+
+            BDDMockito.given(mockReason2.getCode())
+                    .willReturn("ConditionalCheckFailed");
+
+            sut.add(writeOperation1);
+            sut.add(writeOperation2);
+
+            StepVerifier.create(sut.commit())
+                    .consumeErrorWith(thrown -> {
+                        assertThat(thrown).isNotNull();
+                        assertThat(thrown).isNotInstanceOf(CancellationReason.class);
+
+                        final var error = (ResourceNotFoundException) thrown;
+
+                        assertThat(error.getCode()).isEqualTo("21");
+                        assertThat(error.getMessage()).isEqualTo("NotFound1");
+                    })
+                    .verify();
+        }
+
+        @Test
+        void shouldThrowUnexpectedErrorWhenNoConditionalCheckErrorHaveThrown() throws ExecutionException, InterruptedException {
+            final var futureError = Mockito.mock(ExecutionException.class);
+            final var errorResult = Mockito.mock(TransactionCanceledException.class);
+            final var mockReason1 = Mockito.mock(CancellationReason.class);
+            final var putOperation = Mockito.mock(Put.class);
+            final var futureResult = Mockito.mock(Future.class);
+            final var writeOperation1 = DynamoWriteOperation
+                    .builder()
+                    .identity("id")
+                    .errorConverter(ce -> new ResourceNotFoundException("20", "NotFound"))
+                    .operation(putOperation)
+                    .build();
+
+            BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(Mockito.any(TransactWriteItemsRequest.class)))
+                    .willReturn(futureResult);
+
+            BDDMockito.given(futureResult.get())
+                    .willThrow(futureError);
+
+            BDDMockito.given(futureError.getCause())
+                            .willReturn(errorResult);
+
+            BDDMockito.given(errorResult.getCancellationReasons())
+                    .willReturn(List.of(mockReason1));
+
+            BDDMockito.given(mockReason1.getCode())
+                    .willReturn("THROTTLING");
+
+            sut.add(writeOperation1);
+
+            StepVerifier.create(sut.commit())
+                    .consumeErrorWith(thrown -> {
+                        assertThat(thrown).isNotNull();
+                        assertThat(thrown).isInstanceOf(UnexpectedProviderBehaviorException.class);
+
+                        final var error = (UnexpectedProviderBehaviorException) thrown;
+
+                        assertThat(error.getCode()).isEqualTo(Error.UNEXPECTED_BEHAVIOR.getCode());
+                        assertThat(error.getMessage()).isEqualTo("Provider error");
+                        assertThat(error.getCause()).isInstanceOf(TransactionCanceledException.class);
+                    })
+                    .verify();
         }
 
 

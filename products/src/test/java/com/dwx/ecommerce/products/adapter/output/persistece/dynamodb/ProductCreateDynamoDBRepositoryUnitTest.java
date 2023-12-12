@@ -1,149 +1,176 @@
 package com.dwx.ecommerce.products.adapter.output.persistece.dynamodb;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
-import com.amazonaws.services.dynamodbv2.model.*;
+import com.amazonaws.services.dynamodbv2.model.CancellationReason;
+import com.amazonaws.services.dynamodbv2.model.TransactWriteItemsResult;
+import com.amazonaws.services.dynamodbv2.model.TransactionCanceledException;
+import com.dwx.ecommerce.products.adapter.output.persistence.core.DbConnection;
+import com.dwx.ecommerce.products.adapter.output.persistence.core.error.UnexpectedProviderBehaviorException;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.ProductCreateDynamoDBRepository;
-import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.ProductCreateRepository;
+import com.dwx.ecommerce.products.application.domain.Product;
+import com.dwx.ecommerce.products.application.ports.database.ProductCreateRepository;
 import com.dwx.ecommerce.products.adapter.output.persistence.error.IdempotencyException;
 import com.dwx.ecommerce.products.adapter.output.persistence.error.ResourceAlreadyExistsException;
-import com.dwx.ecommerce.products.adapter.output.persistence.error.UnexpectedOperationException;
-import com.dwx.ecommerce.products.adapter.output.persistence.model.Product;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.BDDMockito;
 import org.mockito.Mockito;
 import reactor.test.StepVerifier;
 
-import java.util.Map;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ProductCreateDynamoDBRepositoryUnitTest {
 
     ProductCreateRepository sut;
-    AmazonDynamoDBAsync dynamoDB;
+    DbConnection connection;
+    AmazonDynamoDBAsync dynamoDBAsync;
 
     @BeforeEach
     void setUp() {
-        dynamoDB = Mockito.mock(AmazonDynamoDBAsync.class);
-        sut = new ProductCreateDynamoDBRepository(dynamoDB);
+        connection = Mockito.mock(DbConnection.class);
+        dynamoDBAsync = Mockito.mock(AmazonDynamoDBAsync.class);
+
+        BDDMockito.given(connection.get())
+                .willReturn(dynamoDBAsync);
+
+        sut = new ProductCreateDynamoDBRepository(connection);
     }
 
     @Test
-    void shouldThrowErrorWhenCidAlreadyInUse() {
-        final var result = Mockito.mock(GetItemResult.class);
+    void shouldThrowErrorWhenIdempotencyKeyIsAlreadyInUse() throws ExecutionException, InterruptedException {
+        final var error = Mockito.mock(ExecutionException.class);
+        final var transactCanceledException = Mockito.mock(TransactionCanceledException.class);
+        final var futureResult = Mockito.mock(Future.class);
+
         final var cid = UUID.randomUUID().toString();
-        final var product = Product.builder().build();
 
-        BDDMockito.given(dynamoDB.getItem(Mockito.any(GetItemRequest.class)))
-                .willReturn(result);
+        final var product = Product.builder()
+                .id(UUID.randomUUID().toString())
+                .code(UUID.randomUUID().toString())
+                .build();
+        final var reasons = List.of(
+                new CancellationReason().withCode("ConditionalCheckFailed")
+        );
 
-        StepVerifier.create(sut.create(cid, product))
+        BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(Mockito.any()))
+                .willReturn(futureResult);
+
+        BDDMockito.given(futureResult.get())
+                .willThrow(error);
+
+        BDDMockito.given(error.getCause())
+                .willReturn(transactCanceledException);
+
+        BDDMockito.given(transactCanceledException.getCancellationReasons())
+                .willReturn(reasons);
+
+        StepVerifier.create(sut.execute(cid, product))
                 .consumeErrorWith(thrown -> {
                     assertThat(thrown).isInstanceOf(IdempotencyException.class);
-                    final var error = (IdempotencyException) thrown;
+                    final var result = (IdempotencyException) thrown;
 
-                    assertThat(error.getCode()).isEqualTo("PROD_001");
-                    assertThat(error.getMessage()).isEqualTo("Cid already in use");
+                    assertThat(result.getCode()).isEqualTo("EDB005");
+                    assertThat(result.getMessage()).isEqualTo("Idempotency check already in use");
                 })
                 .verify();
     }
 
     @Test
-    void shouldThrowErrorCodeAlreadyExists() {
-        final var cidResult = Mockito.mock(GetItemResult.class);
-        final var conditionalCheckFailure = Mockito.mock(ConditionalCheckFailedException.class);
+    void shouldThrowErrorCodeAlreadyExists() throws ExecutionException, InterruptedException {
+        final var error = Mockito.mock(ExecutionException.class);
+        final var transactCanceledException = Mockito.mock(TransactionCanceledException.class);
         final var cid = UUID.randomUUID().toString();
+        final var futureResult = Mockito.mock(Future.class);
+        final var productId = UUID.randomUUID().toString();
+        final var code = UUID.randomUUID().toString();
         final var product = Product.builder()
-                .code("001")
-                .build();
-
-        BDDMockito.given(dynamoDB.getItem(Mockito.any(GetItemRequest.class)))
-                .willReturn(cidResult);
-
-        BDDMockito.given(cidResult.getItem())
-                        .willReturn(null);
-
-        BDDMockito.given(dynamoDB.putItem(
-                Mockito.any(PutItemRequest.class)
-        )).willThrow(conditionalCheckFailure);
-
-        BDDMockito.given(conditionalCheckFailure.getErrorMessage())
-                .willReturn("ConditionalCheckFailure");
-
-        StepVerifier.create(sut.create(cid, product))
-                .consumeErrorWith(thrown -> {
-                    assertThat(thrown).isInstanceOf(ResourceAlreadyExistsException.class);
-                    final var error = (ResourceAlreadyExistsException) thrown;
-
-                    assertThat(error.getCode()).isEqualTo("PROD_002");
-                    assertThat(error.getMessage()).isEqualTo("Code already exists");
-                })
-                .verify();
-    }
-
-    @Test
-    void shouldHandleUnexpectedOperation() {
-        final var cidResult = Mockito.mock(GetItemResult.class);
-        final var cid = UUID.randomUUID().toString();
-        final var product = Product.builder()
-                .code("001")
-                .build();
-
-        BDDMockito.given(dynamoDB.getItem(Mockito.any(GetItemRequest.class)))
-                .willReturn(cidResult);
-
-        BDDMockito.given(cidResult.getItem()).willReturn(null);
-
-        BDDMockito.given(dynamoDB.putItem(Mockito.any(PutItemRequest.class)))
-                        .willThrow(UnsupportedOperationException.class);
-
-       StepVerifier.create(sut.create(cid, product))
-                .consumeErrorWith(thrown -> {
-                    assertThat(thrown).isInstanceOf(UnexpectedOperationException.class);
-                    final var error = (UnexpectedOperationException) thrown;
-
-                    assertThat(error.getCode()).isEqualTo("APP_001");
-                    assertThat(error.getMessage()).isEqualTo("We could not handle operation");
-                })
-                .verify();
-
-    }
-
-    @Test
-    void shouldReturnMappedProduct() {
-        final var cidResult = Mockito.mock(GetItemResult.class);
-        final var putItemResult = Mockito.mock(PutItemResult.class);
-        final var cid = UUID.randomUUID().toString();
-        final var code = "001";
-        final var product = Product.builder()
+                .id(productId)
                 .code(code)
                 .build();
 
-        final var expectedPutRequest = new PutItemRequest()
-                .withTableName("Products")
-                .withItem(Map.of("PK", new AttributeValue("PK")));
+        final var reasons = List.of(
+                new CancellationReason().withCode("NOTHING_ELSE_MATTER"),
+                new CancellationReason().withCode("ConditionalCheckFailed")
+        );
 
-        BDDMockito.given(dynamoDB.getItem(Mockito.any(GetItemRequest.class)))
-                .willReturn(cidResult);
 
-        BDDMockito.given(cidResult.getItem()).willReturn(null);
+        BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(Mockito.any()))
+                .willReturn(futureResult);
 
-        BDDMockito.given(dynamoDB.putItem(expectedPutRequest))
-                .willReturn(putItemResult);
+        BDDMockito.given(futureResult.get())
+                .willThrow(error);
 
-        BDDMockito.given(putItemResult.getAttributes())
-                        .willReturn(Map.of(
-                                "code", new AttributeValue("001")
-                        ));
+        BDDMockito.given(error.getCause())
+                .willReturn(transactCanceledException);
 
-        StepVerifier.create(sut.create(cid, product))
-                .consumeNextWith(p -> {
-                    assertThat(p.getCode()).isEqualTo(code);
+        BDDMockito.given(transactCanceledException.getCancellationReasons())
+                .willReturn(reasons);
+
+        StepVerifier.create(sut.execute(cid, product))
+                .consumeErrorWith(thrown -> {
+                    assertThat(thrown).isInstanceOf(ResourceAlreadyExistsException.class);
+                    final var result = (ResourceAlreadyExistsException) thrown;
+
+                    assertThat(result.getCode()).isEqualTo("EDB008");
+                    assertThat(result.getMessage()).isEqualTo("Code already exists");
                 })
-                .verifyComplete();
+                .verify();
     }
 
+    @Test
+    void shouldHandleUnexpectedOperation() throws ExecutionException, InterruptedException {
+        final var cid = UUID.randomUUID().toString();
+        final var futureResult = Mockito.mock(Future.class);
+        final var product = Product.builder()
+                .id(UUID.randomUUID().toString())
+                .code("001")
+                .build();
 
+        BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(Mockito.any()))
+                .willReturn(futureResult);
+
+        BDDMockito.given(futureResult.get())
+                .willThrow(new InterruptedException());
+
+
+        StepVerifier.create(sut.execute(cid, product))
+                .consumeErrorWith(thrown -> {
+                    assertThat(thrown).isInstanceOf(UnexpectedProviderBehaviorException.class);
+                    final var error = (UnexpectedProviderBehaviorException) thrown;
+
+                    assertThat(error.getCode()).isEqualTo("EDB001");
+                    assertThat(error.getMessage()).isEqualTo("Provider error");
+                })
+                .verify();
+
+    }
+
+    @Test
+    void shouldReturnMappedProduct() throws ExecutionException, InterruptedException {
+        final var cid = UUID.randomUUID().toString();
+        final var futureResult = Mockito.mock(Future.class);
+        final var transactionResult = Mockito.mock(TransactWriteItemsResult.class);
+        final var code = "001";
+        final var product = Product.builder()
+                .id(UUID.randomUUID().toString())
+                .code(code)
+                .build();
+
+        BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(Mockito.any()))
+                .willReturn(futureResult);
+
+        BDDMockito.given(futureResult.get())
+                .willReturn(transactionResult);
+
+        StepVerifier.create(sut.execute(cid, product))
+                .consumeNextWith(p ->
+                        assertThat(p.getCode()).isEqualTo(code)
+                )
+                .verifyComplete();
+    }
 }

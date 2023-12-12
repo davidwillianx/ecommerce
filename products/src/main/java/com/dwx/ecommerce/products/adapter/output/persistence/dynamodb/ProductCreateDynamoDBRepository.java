@@ -1,61 +1,59 @@
 package com.dwx.ecommerce.products.adapter.output.persistence.dynamodb;
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
-import com.amazonaws.services.dynamodbv2.model.*;
-import com.dwx.ecommerce.products.adapter.output.persistence.error.IdempotencyException;
+import com.amazonaws.services.dynamodbv2.document.ItemUtils;
+import com.amazonaws.services.dynamodbv2.model.Put;
+import com.dwx.ecommerce.products.adapter.output.persistence.core.DbConnection;
+import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.IdempotencyOperationBuilder;
+import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.Transaction;
+import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.command.DynamoWriteOperation;
+import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.PK;
 import com.dwx.ecommerce.products.adapter.output.persistence.error.ResourceAlreadyExistsException;
-import com.dwx.ecommerce.products.adapter.output.persistence.error.UnexpectedOperationException;
-import com.dwx.ecommerce.products.adapter.output.persistence.model.Product;
-import lombok.RequiredArgsConstructor;
+import com.dwx.ecommerce.products.adapter.output.persistence.model.ProductDto;
+import com.dwx.ecommerce.products.application.domain.Product;
+import com.dwx.ecommerce.products.application.ports.database.ProductCreateRepository;
 import reactor.core.publisher.Mono;
 
-import java.util.Map;
 
-@RequiredArgsConstructor
-public class ProductCreateDynamoDBRepository implements ProductCreateRepository {
+public class ProductCreateDynamoDBRepository extends Transaction<ProductDto>
+        implements ProductCreateRepository {
 
-   private final AmazonDynamoDBAsync dynamoDb;
+    private static final String ENTITY_NAME = "Products";
+
+    public ProductCreateDynamoDBRepository(DbConnection connection) {
+        super(connection);
+    }
+
     @Override
-    public Mono<Product> create(String cid, Product product) {
-     return   Mono.just(cid)
-                .flatMap(it -> Mono.defer(() -> {
-                    final var request  = new GetItemRequest()
-                            .withTableName("Products")
-                            .withKey(Map.of());
+    public Mono<Product> execute(String trackingId, Product product) {
 
-                    final var idempotency = dynamoDb.getItem(request);
+        return Mono.just(trackingId)
+                .doOnNext(it -> {
+                    final var pk = PK.builder()
+                            .PK(product.getCode())
+                            .SK(product.getCategory().name())
+                            .build();
 
-                    if(idempotency.getItem() != null) {
-                        return Mono.error(new ResourceAlreadyExistsException("PROD_001", "Cid already in use"));
-                    }
+                    final var persist = new Put()
+                            .withTableName(ENTITY_NAME)
+                            .withItem(ItemUtils.fromSimpleMap(pk.getId()));
 
-                    return Mono.just(cid);
-                }))
-                .map(it -> {
-
-                    final var productMapToPersist = Map.of(
-                            "PK", new AttributeValue("PK")
+                    this.add(IdempotencyOperationBuilder.builder()
+                            .transactionId(trackingId)
+                            .entityName(ENTITY_NAME)
+                            .pk(pk)
+                            .build()
+                            .getOperation()
                     );
 
-                    final var productRegisterRequest =new  PutItemRequest()
-                            .withTableName("Products")
-                            .withItem(productMapToPersist);
-
-                    final var productResult = dynamoDb.putItem(productRegisterRequest);
-
-                    return Product.builder()
-                            .code(productResult.getAttributes().get("code").getS())
-                            .build();
-                }).doOnError(thrown -> {
-                    if(thrown instanceof ConditionalCheckFailedException error) {
-                      throw new ResourceAlreadyExistsException("PROD_002", "Code already exists", error);
-                    }
-
-                    if(thrown instanceof ResourceAlreadyExistsException cidError) {
-                        throw new IdempotencyException("PROD_001", "Cid already in use");
-                    }
-
-                    throw new UnexpectedOperationException("APP_001", "We could not handle operation");
-                });
+                    this.add(DynamoWriteOperation.builder()
+                            .identity(trackingId)
+                            .operation(persist)
+                            .errorConverter(e -> new ResourceAlreadyExistsException(
+                                    "Code already exists"
+                            ))
+                            .build());
+                })
+                .flatMap(it -> Mono.defer(this::commit))
+                .map(succeed -> product);
     }
 }

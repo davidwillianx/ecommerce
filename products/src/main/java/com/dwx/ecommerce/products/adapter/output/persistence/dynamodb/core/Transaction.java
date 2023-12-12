@@ -3,33 +3,46 @@ package com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.dynamodbv2.model.*;
+import com.dwx.ecommerce.products.adapter.output.persistence.core.DbConnection;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.command.Operation;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.Error;
-import com.dwx.ecommerce.products.adapter.output.persistence.core.error.*;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.ResourceNotFoundException;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.TableNotFoundException;
-import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.command.DynamoWriteOperation;
+import com.dwx.ecommerce.products.adapter.output.persistence.core.error.UnsupportedOperationException;
+import com.dwx.ecommerce.products.adapter.output.persistence.core.error.*;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.DynamoModel;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.Model;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.PK;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
-public class Transaction<T> implements ITransaction<T, DynamoWriteOperation> {
+public class Transaction<T> implements ITransaction<T> {
     private final static String ERROR_MESSAGE_TABLE_NOT_FOUND = "Table not found";
     private final static String ERROR_MESSAGE_ITEM_NOT_FOUND = "Item not found";
     private final static String ERROR_MESSAGE_UNEXPECTED_ERROR = "Unexpected error";
+
+    private final static String CONDITIONAL_CHECK_FAILED = "ConditionalCheckFailed";
     private final static int TRANSACTION_LIMIT = 30;
 
+    @Getter
     private final DbConnection connection;
-    private final List<DynamoWriteOperation> operations = new ArrayList<>();
+    private final List<Operation> operations = new ArrayList<>();
+
+    private final Function<Throwable, UnexpectedProviderBehaviorException> handleAwsError = error -> new UnexpectedProviderBehaviorException(
+            Error.UNEXPECTED_BEHAVIOR.getCode(),
+            "Provider error",
+            error
+    );
 
 
     @Override
@@ -44,7 +57,7 @@ public class Transaction<T> implements ITransaction<T, DynamoWriteOperation> {
     }
 
     @Override
-    public void add(DynamoWriteOperation operation) {
+    public void add(Operation operation) {
         validateIdentity(operation);
         validateLimit();
         validateUniqueID(operation);
@@ -53,24 +66,63 @@ public class Transaction<T> implements ITransaction<T, DynamoWriteOperation> {
 
     @Override
     public Mono<Boolean> commit() {
-        if(this.operations.isEmpty()) {
+        if (this.operations.isEmpty()) {
             throw new NoTransactionOperationDefinedException(
                     Error.NO_TRANSACTION_DEFINED.getCode(),
                     "No transaction defined"
             );
         }
-        final var dynamoOperations = (List<TransactWriteItem>) operations.stream()
-                .map(Operation::getOperation)
+        final var dynamo = (AmazonDynamoDBAsync) connection.get();
+
+        final var type = (DynamoOperationType) operations.get(0).getType();
+
+
+        final var dynamoOperations = operations.stream()
+                .map(o -> (TransactWriteItem) DynamoOperationType.build(type.getName()).apply(o))
                 .collect(Collectors.toList());
 
-        final var transaction =new TransactWriteItemsRequest()
-                .withTransactItems(dynamoOperations);
+        if (type.equals(DynamoOperationType.INSERT) || type.equals(DynamoOperationType.UPDATE)) {
+            final var transaction = new TransactWriteItemsRequest()
+                    .withTransactItems(dynamoOperations);
 
-        ((AmazonDynamoDBAsync) connection.get())
-                .transactWriteItemsAsync(transaction);
+            return Mono.fromFuture(() -> CompletableFuture.supplyAsync(
+                            () -> {
+                                try {
+                                    return dynamo.transactWriteItemsAsync(transaction).get();
+                                } catch (InterruptedException e) {
+                                    throw new RuntimeException(e);
+                                } catch (ExecutionException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                    ))
+                    .onErrorMap(thrown -> {
+                        final var transactionError = thrown.getCause().getCause();
+                        if (transactionError instanceof TransactionCanceledException error) {
+                            return error.getCancellationReasons()
+                                    .stream()
+                                    .filter(reason -> reason.getCode().equals(CONDITIONAL_CHECK_FAILED))
+                                    .findFirst()
+                                    .map(e -> {
+                                        final var errorIndexMatcher = error.getCancellationReasons().indexOf(e);
+                                        final var operationError = operations.get(errorIndexMatcher)
+                                                .getErrorConverter()
+                                                .apply(e);
 
-        return Mono.just(true);
+                                        return (Throwable) operationError;
+                                    })
+                                    .orElseThrow(() ->handleAwsError.apply(error));
+                        }
+
+                        return handleAwsError.apply(thrown);
+                    })
+                    .thenReturn(Boolean.TRUE);
+
+        }
+
+        throw  new UnsupportedOperationException();
     }
+
 
     private Map<String, AttributeValue> mapDynamoResponse(GetItemResult response) {
         final var hasItemFound = response != null
@@ -121,7 +173,7 @@ public class Transaction<T> implements ITransaction<T, DynamoWriteOperation> {
     private void validateLimit() {
         final var hasOverpassLimit = this.operations.size() > TRANSACTION_LIMIT;
 
-        if(hasOverpassLimit) {
+        if (hasOverpassLimit) {
             throw new OperationLimitOverpassException(
                     Error.LIMIT_TRANSACTION_OVERPASS.getCode(),
                     "Operations must have at most 30 items"
@@ -134,7 +186,7 @@ public class Transaction<T> implements ITransaction<T, DynamoWriteOperation> {
         final var hasDifferentId = this.operations.stream()
                 .anyMatch(opr -> opr.getIdentity().compareTo(operation.getIdentity()) != 0);
 
-        if(hasDifferentId) {
+        if (hasDifferentId) {
             throw new NonUniqueIdentifierException(
                     Error.NON_UNIQUE_TRANSACTION.getCode(),
                     "Operations must have same identity"

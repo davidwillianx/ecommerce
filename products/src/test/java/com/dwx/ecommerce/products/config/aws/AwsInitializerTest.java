@@ -2,6 +2,9 @@ package com.dwx.ecommerce.products.config.aws;
 
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import com.dwx.ecommerce.products.adapter.config.aws.AwsInitializer;
+import com.dwx.ecommerce.products.adapter.config.aws.AwsProperties;
+import com.dwx.ecommerce.products.adapter.config.aws.DynamoDBProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.BDDMockito;
