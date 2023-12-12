@@ -138,7 +138,7 @@ class ProductCreateDynamoDBRepositoryUnitTest {
                 .willThrow(new InterruptedException());
 
 
-       StepVerifier.create(sut.execute(cid, product))
+        StepVerifier.create(sut.execute(cid, product))
                 .consumeErrorWith(thrown -> {
                     assertThat(thrown).isInstanceOf(UnexpectedProviderBehaviorException.class);
                     final var error = (UnexpectedProviderBehaviorException) thrown;
@@ -165,14 +165,12 @@ class ProductCreateDynamoDBRepositoryUnitTest {
                 .willReturn(futureResult);
 
         BDDMockito.given(futureResult.get())
-                        .willReturn(transactionResult);
+                .willReturn(transactionResult);
 
         StepVerifier.create(sut.execute(cid, product))
                 .consumeNextWith(p ->
-                    assertThat(p.getCode()).isEqualTo(code)
+                        assertThat(p.getCode()).isEqualTo(code)
                 )
                 .verifyComplete();
     }
-
-
 }

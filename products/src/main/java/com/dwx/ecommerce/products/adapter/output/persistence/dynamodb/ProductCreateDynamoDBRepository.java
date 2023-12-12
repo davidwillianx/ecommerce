@@ -29,8 +29,8 @@ public class ProductCreateDynamoDBRepository extends Transaction<ProductDto>
         return Mono.just(trackingId)
                 .doOnNext(it -> {
                     final var pk = PK.builder()
-                            .PK(product.getId())
-                            .SK(product.getCode())
+                            .PK(product.getCode())
+                            .SK(product.getCategory().name())
                             .build();
 
                     final var persist = new Put()
@@ -54,6 +54,6 @@ public class ProductCreateDynamoDBRepository extends Transaction<ProductDto>
                             .build());
                 })
                 .flatMap(it -> Mono.defer(this::commit))
-                .thenReturn(product);
+                .map(succeed -> product);
     }
 }
