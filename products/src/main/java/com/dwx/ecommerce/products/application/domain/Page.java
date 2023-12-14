@@ -11,9 +11,10 @@ public class Page<T> {
     private T previous;
     private List<T> items;
 
-    public static <T> Page<T> from(List<T> items) {
+    public static <T> Page<T> from(Integer size, List<T> items) {
+        final var prev = items.size() > size ? items.get(0): null;
         return Page.<T>builder()
-                .previous(items.get(0))
+                .previous(prev)
                 .items(items)
                 .build();
     }
