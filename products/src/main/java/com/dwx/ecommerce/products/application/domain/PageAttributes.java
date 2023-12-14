@@ -1,10 +1,12 @@
 package com.dwx.ecommerce.products.application.domain;
 
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 @Getter
 @Builder
+@EqualsAndHashCode
 public class PageAttributes {
     private String code;
     private String description;
