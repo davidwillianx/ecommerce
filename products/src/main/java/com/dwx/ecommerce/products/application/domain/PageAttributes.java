@@ -11,6 +11,7 @@ public class PageAttributes {
     private String code;
     private String description;
     private ProductCategory productCategory;
+    private Integer size;
 
     public static PageAttributes from(
             String code,

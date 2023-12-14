@@ -16,6 +16,6 @@ public class RetrievePageableProductUseCaseImpl implements RetrievePageableProdu
     public Mono<Page<Product>> execute(String cid, PageAttributes pageAttributes) {
         return repository.execute(cid, pageAttributes)
                 .collectList()
-                .thenReturn(Page.<Product>builder().build());
+                .map(Page::from);
     }
 }
