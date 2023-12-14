@@ -13,9 +13,13 @@ public class Page<T> {
 
     public static <T> Page<T> from(Integer size, List<T> items) {
         final var prev = items.size() > size ? items.get(0): null;
+        final var pageItems = items.stream()
+                .filter(it -> !it.equals(prev))
+                .toList();
+
         return Page.<T>builder()
                 .previous(prev)
-                .items(items)
+                .items(pageItems)
                 .build();
     }
 }

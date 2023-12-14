@@ -114,5 +114,38 @@ class RetrievePageableProductUseCaseImplUnitTest {
                 .verifyComplete();
     }
 
+    @Test
+    void shouldExecuteReturnPageContainingItemsMatchingPageSize() {
+        final var cid = "cid";
+        final var attributes = PageAttributes.builder()
+                .size(3)
+                .code("00")
+                .description("something")
+                .productCategory(ProductCategory.FURNITURE)
+                .build();
+
+        final var product1 = Product.builder()
+                .code("00")
+                .build();
+        final var product2 = Product.builder()
+                .code("01")
+                .build();
+        final var product3 = Product.builder()
+                .code("02")
+                .build();
+
+        BDDMockito.given(repository.execute(
+                Mockito.anyString(),
+                Mockito.any(PageAttributes.class)
+        )).willReturn(Flux.just(product1, product2, product3));
+
+        StepVerifier.create(sut.execute(cid, attributes))
+                .assertNext(result -> {
+                    assertThat(result).isNotNull();
+                    assertThat(result.getItems().size()).isEqualTo(3);
+                })
+                .verifyComplete();
+    }
+
 
 }
