@@ -15,13 +15,13 @@ public class GetProductController {
 
     public Mono<ResponseEntity<PageDto<ProductDto>>> execute(
             String cid,
-            String code,
+            String nextCursor,
             String description,
             CategoryDto categoryDto
     ) {
         return Mono.just(categoryDto)
                 .map(CategoryDto::from)
-                .map(category -> PageAttributes.from(code, description, category))
+                .map(category -> PageAttributes.from(nextCursor, description, category))
                 .flatMap(it -> Mono.defer(() -> useCase.execute(cid, it)))
                 .map(it -> PageDto.from(it, ProductDto::from))
                 .map(ResponseEntity::ok)

@@ -17,7 +17,7 @@ public class RetrievePageableProductUseCaseImpl implements RetrievePageableProdu
         return repository.execute(cid, pageAttributes)
                 .collectList()
                 .map(items -> Page.from(
-                        pageAttributes.getNextIndex(),
+                        pageAttributes.getNextCursor(),
                         pageAttributes.getSize(),
                         items,
                         (Product p, String index) -> p.getCode().equalsIgnoreCase(index)

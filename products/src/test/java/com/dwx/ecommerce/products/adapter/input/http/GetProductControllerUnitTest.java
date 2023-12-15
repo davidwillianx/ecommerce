@@ -63,7 +63,7 @@ class GetProductControllerUnitTest {
     @Test
     void shouldReturnErrorWhenItCouldNotGetData() {
         final var cid = "cid";
-        final var code = "0000";
+        final var nextCursor = "0000";
         final var description = "NotAbleToFindItem";
         final var category = CategoryDto.FURNITURE;
 
@@ -75,7 +75,7 @@ class GetProductControllerUnitTest {
 
         StepVerifier.create(sut.execute(
                         cid,
-                        code,
+                        nextCursor,
                         description,
                         category
                 ))
@@ -85,7 +85,7 @@ class GetProductControllerUnitTest {
                     Mockito.verify(useCase).execute(
                             Mockito.eq(cid),
                             Mockito.argThat(it -> {
-                                assertThat(it.getCode()).isEqualTo(code);
+                                assertThat(it.getNextCursor()).isEqualTo(nextCursor);
                                 assertThat(it.getDescription()).isEqualTo(description);
                                 assertThat(it.getProductCategory()).isEqualTo(ProductCategory.FURNITURE);
                                 return Boolean.TRUE;

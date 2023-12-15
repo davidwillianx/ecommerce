@@ -8,19 +8,18 @@ import lombok.Getter;
 @Builder
 @EqualsAndHashCode
 public class PageAttributes {
-    private String code;
     private String description;
     private ProductCategory productCategory;
     private Integer size;
-    private String nextIndex;
+    private String nextCursor;
 
     public static PageAttributes from(
-            String code,
+            String nextIndex,
             String description,
             ProductCategory category
     ) {
         return PageAttributes.builder()
-                .code(code)
+                .nextCursor(nextIndex)
                 .description(description)
                 .productCategory(category)
                 .build();

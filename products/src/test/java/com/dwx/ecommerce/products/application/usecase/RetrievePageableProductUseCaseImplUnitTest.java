@@ -28,7 +28,6 @@ class RetrievePageableProductUseCaseImplUnitTest {
     void shouldExecuteThrowErrorWhenItCouldNotGetValues() {
         final var cid = "cid";
         final var attributes = PageAttributes.builder()
-                .code("00")
                 .description("something")
                 .productCategory(ProductCategory.FURNITURE)
                 .build();
@@ -51,8 +50,7 @@ class RetrievePageableProductUseCaseImplUnitTest {
         final var cid = "cid";
         final var attributes = PageAttributes.builder()
                 .size(2)
-                .nextIndex("00")
-                .code("00")
+                .nextCursor("00")
                 .description("something")
                 .productCategory(ProductCategory.FURNITURE)
                 .build();
@@ -86,7 +84,7 @@ class RetrievePageableProductUseCaseImplUnitTest {
         final var cid = "cid";
         final var attributes = PageAttributes.builder()
                 .size(3)
-                .code("00")
+                .nextCursor("00")
                 .description("something")
                 .productCategory(ProductCategory.FURNITURE)
                 .build();
@@ -120,7 +118,7 @@ class RetrievePageableProductUseCaseImplUnitTest {
         final var cid = "cid";
         final var attributes = PageAttributes.builder()
                 .size(3)
-                .code("00")
+                .nextCursor("00")
                 .description("something")
                 .productCategory(ProductCategory.FURNITURE)
                 .build();
@@ -153,7 +151,7 @@ class RetrievePageableProductUseCaseImplUnitTest {
         final var cid = "cid";
         final var attributes = PageAttributes.builder()
                 .size(3)
-                .code("00")
+                .nextCursor("00")
                 .description("something")
                 .productCategory(ProductCategory.FURNITURE)
                 .build();
@@ -190,8 +188,7 @@ class RetrievePageableProductUseCaseImplUnitTest {
         final var cid = "cid";
         final var attributes = PageAttributes.builder()
                 .size(2)
-                .nextIndex("00")
-                .code("00")
+                .nextCursor("00")
                 .description("something")
                 .productCategory(ProductCategory.FURNITURE)
                 .build();
