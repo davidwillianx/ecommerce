@@ -51,6 +51,7 @@ class RetrievePageableProductUseCaseImplUnitTest {
         final var cid = "cid";
         final var attributes = PageAttributes.builder()
                 .size(2)
+                .nextIndex("00")
                 .code("00")
                 .description("something")
                 .productCategory(ProductCategory.FURNITURE)
@@ -188,7 +189,8 @@ class RetrievePageableProductUseCaseImplUnitTest {
     void shouldExecuteReturnPageContainingItemsAndItsIndexes() {
         final var cid = "cid";
         final var attributes = PageAttributes.builder()
-                .size(3)
+                .size(2)
+                .nextIndex("00")
                 .code("00")
                 .description("something")
                 .productCategory(ProductCategory.FURNITURE)
