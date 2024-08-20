@@ -1,6 +1,7 @@
 package com.dwx.ecommerce.products.adapter.input.http;
 
 import com.dwx.ecommerce.products.application.domain.Product;
+import com.dwx.ecommerce.products.application.domain.ProductCategory;
 import com.dwx.ecommerce.products.application.usecase.CreateProductUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,6 +60,7 @@ class PostProductControllerUnitTest {
                             Product.builder()
                                     .code("00")
                                     .description("Smartphone")
+                                    .category(ProductCategory.ELECTRONIC)
                                     .build()
                     );
                 })

@@ -116,6 +116,7 @@ public class Transaction<T> implements ITransaction<T> {
 
                         return handleAwsError.apply(thrown);
                     })
+                    .doOnSuccess(ignored -> operations.clear())
                     .thenReturn(Boolean.TRUE);
 
         }

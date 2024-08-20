@@ -1,5 +1,6 @@
 package com.dwx.ecommerce.products.adapter.output.persistence.dynamodb;
 
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.dynamodbv2.model.Put;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.DbConnection;
@@ -8,26 +9,24 @@ import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.Trans
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.command.DynamoWriteOperation;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.core.domain.PK;
 import com.dwx.ecommerce.products.adapter.output.persistence.error.ResourceAlreadyExistsException;
-import com.dwx.ecommerce.products.adapter.output.persistence.model.ProductDto;
 import com.dwx.ecommerce.products.application.domain.Product;
 import com.dwx.ecommerce.products.application.ports.database.ProductCreateRepository;
+import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
 
-public class ProductCreateDynamoDBRepository extends Transaction<ProductDto>
-        implements ProductCreateRepository {
+@RequiredArgsConstructor
+public class ProductCreateDynamoDBRepository implements ProductCreateRepository {
 
     private static final String ENTITY_NAME = "Products";
+    private final DbConnection<AmazonDynamoDBAsync> connection;
 
-    public ProductCreateDynamoDBRepository(DbConnection connection) {
-        super(connection);
-    }
 
     @Override
     public Mono<Product> execute(String trackingId, Product product) {
-
-        return Mono.just(trackingId)
-                .doOnNext(it -> {
+        final var transaction = new Transaction<>(connection);
+        return Mono.just(transaction)
+                .map(it -> {
                     final var pk = PK.builder()
                             .PK(product.getCode())
                             .SK(product.getCategory().name())
@@ -37,7 +36,7 @@ public class ProductCreateDynamoDBRepository extends Transaction<ProductDto>
                             .withTableName(ENTITY_NAME)
                             .withItem(ItemUtils.fromSimpleMap(pk.getId()));
 
-                    this.add(IdempotencyOperationBuilder.builder()
+                    transaction.add(IdempotencyOperationBuilder.builder()
                             .transactionId(trackingId)
                             .entityName(ENTITY_NAME)
                             .pk(pk)
@@ -45,15 +44,18 @@ public class ProductCreateDynamoDBRepository extends Transaction<ProductDto>
                             .getOperation()
                     );
 
-                    this.add(DynamoWriteOperation.builder()
+                    transaction.add(DynamoWriteOperation.builder()
                             .identity(trackingId)
                             .operation(persist)
                             .errorConverter(e -> new ResourceAlreadyExistsException(
                                     "Code already exists"
                             ))
-                            .build());
+                            .build()
+                    );
+
+                    return it;
                 })
-                .flatMap(it -> Mono.defer(this::commit))
+                .flatMap(Transaction::commit)
                 .map(succeed -> product);
     }
 }
