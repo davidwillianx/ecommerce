@@ -24,8 +24,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.stream.IntStream;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
 
 class TransactionUnitTest {
     ITransaction sut;
@@ -264,6 +263,9 @@ class TransactionUnitTest {
                     .identity("id2")
                     .build();
 
+            sut.add(writeOperation);
+            assertThatThrownBy(() -> sut.add(getOperation))
+                    .hasMessageContaining("Operations must have same identity");
         }
     }
 
@@ -438,7 +440,7 @@ class TransactionUnitTest {
                     .willThrow(futureError);
 
             BDDMockito.given(futureError.getCause())
-                            .willReturn(errorResult);
+                    .willReturn(errorResult);
 
             BDDMockito.given(errorResult.getCancellationReasons())
                     .willReturn(List.of(mockReason1));
@@ -461,7 +463,5 @@ class TransactionUnitTest {
                     })
                     .verify();
         }
-
-
     }
 }

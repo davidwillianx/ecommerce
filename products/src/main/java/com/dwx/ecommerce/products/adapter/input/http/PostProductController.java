@@ -36,6 +36,7 @@ public class PostProductController {
                 .map(it -> Product.builder()
                         .code(it.getCode())
                         .description(it.getName())
+                        .category(CategoryDto.from(it.getCategory()))
                         .build()
                 )
                 .flatMap(it -> useCase.execute(trackingId, it))

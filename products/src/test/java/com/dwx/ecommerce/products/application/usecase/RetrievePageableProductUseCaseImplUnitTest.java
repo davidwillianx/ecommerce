@@ -84,7 +84,6 @@ class RetrievePageableProductUseCaseImplUnitTest {
         final var cid = "cid";
         final var attributes = PageAttributes.builder()
                 .size(3)
-                .nextCursor("00")
                 .description("something")
                 .productCategory(ProductCategory.FURNITURE)
                 .build();
@@ -124,13 +123,13 @@ class RetrievePageableProductUseCaseImplUnitTest {
                 .build();
 
         final var product1 = Product.builder()
-                .code("00")
-                .build();
-        final var product2 = Product.builder()
                 .code("01")
                 .build();
-        final var product3 = Product.builder()
+        final var product2 = Product.builder()
                 .code("02")
+                .build();
+        final var product3 = Product.builder()
+                .code("03")
                 .build();
 
         BDDMockito.given(repository.execute(
@@ -157,17 +156,17 @@ class RetrievePageableProductUseCaseImplUnitTest {
                 .build();
 
         final var product1 = Product.builder()
-                .code("00")
-                .build();
-        final var product2 = Product.builder()
                 .code("01")
                 .build();
-        final var product3 = Product.builder()
+        final var product2 = Product.builder()
                 .code("02")
+                .build();
+        final var product3 = Product.builder()
+                .code("03")
                 .build();
 
         final var product4 = Product.builder()
-                .code("03")
+                .code("04")
                 .build();
 
         BDDMockito.given(repository.execute(
@@ -179,6 +178,7 @@ class RetrievePageableProductUseCaseImplUnitTest {
                 .assertNext(result -> {
                     assertThat(result).isNotNull();
                     assertThat(result.getNext()).isNotNull();
+                    assertThat(result.getNext().getCode()).isEqualTo("04");
                 })
                 .verifyComplete();
     }

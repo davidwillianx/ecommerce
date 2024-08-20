@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         RepositoryInitializer.class
 })
 class ProductCreateDynamoDBRepositoryIntegrationTest {
+
     @Autowired
     ProductCreateDynamoDBRepository sut;
     @Autowired
@@ -34,22 +35,22 @@ class ProductCreateDynamoDBRepositoryIntegrationTest {
 
     @Test
     void shouldThrowErrorWhenIdempotencyCheckAlreadyExists() {
-        final var cid = UUID.randomUUID().toString();
         final var externalId = UUID.randomUUID().toString();
 
         final var idempotencyRegister = Map.of(
-                "PK", new AttributeValue().withS("IDEMPOTENCY#" + cid),
-                "SK", new AttributeValue(externalId)
+                "PK", new AttributeValue().withS("IDEMPOTENCY#" + externalId),
+                "SK", new AttributeValue("idempotencyCode")
         );
 
         amazonDynamoDBAsync.putItem("Products", idempotencyRegister);
 
         StepVerifier.create(
                         sut.execute(
-                                cid,
+                                externalId,
                                 Product.builder()
-                                        .id(externalId)
-                                        .code("code12131")
+                                        .code("idempotencyCode")
+                                        .description("description")
+                                        .category(ProductCategory.FURNITURE)
                                         .build()
                         )
                 )
@@ -63,13 +64,14 @@ class ProductCreateDynamoDBRepositoryIntegrationTest {
 
     @Test
     void shouldExecuteSuccessfully() {
-        final var cid = UUID.randomUUID().toString();
+        final var trackingId = UUID.randomUUID().toString();
         final var product = Product.builder()
-                .code("code12131")
-                .category(ProductCategory.FURNITURE)
+                .code(UUID.randomUUID().toString())
+                .description("beautyAndBeast")
+                .category(ProductCategory.BEAUTY)
                 .build();
 
-        StepVerifier.create(sut.execute(cid, product))
+        StepVerifier.create(sut.execute(trackingId, product))
                 .assertNext(result -> {
                     assertThat(result).isNotNull();
                     final var getRequest = new GetItemRequest();

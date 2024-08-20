@@ -8,6 +8,7 @@ import com.dwx.ecommerce.products.adapter.output.persistence.core.DbConnection;
 import com.dwx.ecommerce.products.adapter.output.persistence.core.error.UnexpectedProviderBehaviorException;
 import com.dwx.ecommerce.products.adapter.output.persistence.dynamodb.ProductCreateDynamoDBRepository;
 import com.dwx.ecommerce.products.application.domain.Product;
+import com.dwx.ecommerce.products.application.domain.ProductCategory;
 import com.dwx.ecommerce.products.application.ports.database.ProductCreateRepository;
 import com.dwx.ecommerce.products.adapter.output.persistence.error.IdempotencyException;
 import com.dwx.ecommerce.products.adapter.output.persistence.error.ResourceAlreadyExistsException;
@@ -51,6 +52,7 @@ class ProductCreateDynamoDBRepositoryUnitTest {
 
         final var product = Product.builder()
                 .id(UUID.randomUUID().toString())
+                .category(ProductCategory.FURNITURE)
                 .code(UUID.randomUUID().toString())
                 .build();
         final var reasons = List.of(
@@ -91,6 +93,7 @@ class ProductCreateDynamoDBRepositoryUnitTest {
         final var product = Product.builder()
                 .id(productId)
                 .code(code)
+                .category(ProductCategory.FURNITURE)
                 .build();
 
         final var reasons = List.of(
@@ -129,6 +132,7 @@ class ProductCreateDynamoDBRepositoryUnitTest {
         final var product = Product.builder()
                 .id(UUID.randomUUID().toString())
                 .code("001")
+                .category(ProductCategory.FURNITURE)
                 .build();
 
         BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(Mockito.any()))
@@ -159,6 +163,7 @@ class ProductCreateDynamoDBRepositoryUnitTest {
         final var product = Product.builder()
                 .id(UUID.randomUUID().toString())
                 .code(code)
+                .category(ProductCategory.FURNITURE)
                 .build();
 
         BDDMockito.given(dynamoDBAsync.transactWriteItemsAsync(Mockito.any()))
